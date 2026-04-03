@@ -15,7 +15,7 @@ declare(strict_types=1);
  * configured in the ini-values step.
  */
 
-require __DIR__ . '/../vendor/autoload.php';
+require __DIR__ . '/../../vendor/autoload.php';
 
 use Handlers\BenchHandler;
 use Quill\App;

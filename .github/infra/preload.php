@@ -29,7 +29,7 @@ declare(strict_types=1);
  */
 
 // Ensure the autoloader is available so class maps are built correctly.
-require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/../../vendor/autoload.php';
 
 // ── Quill framework core ─────────────────────────────────────────────────────
 $quillSrc = [
@@ -50,14 +50,14 @@ $quillSrc = [
 ];
 
 foreach ($quillSrc as $class) {
-    $file = __DIR__ . '/../src/' . $class . '.php';
+    $file = __DIR__ . '/../../src/' . $class . '.php';
     if (file_exists($file)) {
         opcache_compile_file($file);
     }
 }
 
 // ── Quill attributes ─────────────────────────────────────────────────────────
-$attrDir = __DIR__ . '/../attributes/';
+$attrDir = __DIR__ . '/../../attributes/';
 if (is_dir($attrDir)) {
     foreach (glob($attrDir . '*.php') ?: [] as $file) {
         opcache_compile_file($file);
@@ -82,7 +82,7 @@ $fastRouteFiles = [
     'src/functions.php',
 ];
 
-$fastRouteBase = __DIR__ . '/../vendor/nikic/fast-route/';
+$fastRouteBase = __DIR__ . '/../../vendor/nikic/fast-route/';
 foreach ($fastRouteFiles as $rel) {
     $file = $fastRouteBase . $rel;
     if (file_exists($file)) {
@@ -91,7 +91,7 @@ foreach ($fastRouteFiles as $rel) {
 }
 
 // ── Benchmark handlers (only present in benchmark images) ────────────────────
-$benchHandler = __DIR__ . '/../handlers/BenchHandler.php';
+$benchHandler = __DIR__ . '/../../handlers/BenchHandler.php';
 if (file_exists($benchHandler)) {
     opcache_compile_file($benchHandler);
 }

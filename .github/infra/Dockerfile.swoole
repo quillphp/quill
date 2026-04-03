@@ -46,8 +46,8 @@ COPY src/         src/
 COPY attributes/  attributes/
 COPY dtos/        dtos/
 COPY handlers/    handlers/
-COPY scripts/swoole_bench.php public/index.php
-COPY scripts/preload.php      scripts/preload.php
+COPY .github/infra/swoole_bench.php public/index.php
+COPY .github/infra/preload.php      scripts/preload.php
 
 # ── OPcache + JIT tuning (written AFTER all files are in place) ──────────────
 # NTS PHP — JIT tracing is fully supported here.

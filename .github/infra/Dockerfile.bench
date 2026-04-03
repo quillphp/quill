@@ -48,13 +48,13 @@ COPY handlers/    handlers/
 
 # bench_server.php uses require __DIR__.'/../vendor/autoload.php'
 # Placing it at public/index.php makes that path resolve to /app/vendor/  ✓
-COPY scripts/bench_server.php public/index.php
+COPY .github/infra/bench_server.php public/index.php
 
 # Preload script must be accessible at the path referenced in opcache.ini
-COPY scripts/preload.php      scripts/preload.php
+COPY .github/infra/preload.php      scripts/preload.php
 
 # Override Caddy config with our benchmark-optimised worker setup
-COPY scripts/Caddyfile.bench  /etc/caddy/Caddyfile
+COPY .github/infra/Caddyfile.bench  /etc/caddy/Caddyfile
 
 # ── OPcache tuning (written AFTER all files are in place) ────────────────────
 # FrankenPHP uses a Thread-Safe (ZTS) PHP build — JIT is NOT supported (ZTS).

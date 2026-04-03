@@ -24,13 +24,13 @@ declare(strict_types=1);
 
 // Let the built-in server serve real static files untouched.
 if (PHP_SAPI === 'cli-server') {
-    $file = __DIR__ . '/../public' . ($_SERVER['REQUEST_URI'] ?? '/');
+    $file = __DIR__ . '/../../public' . ($_SERVER['REQUEST_URI'] ?? '/');
     if (is_file($file)) {
         return false;
     }
 }
 
-require __DIR__ . '/../vendor/autoload.php';
+require __DIR__ . '/../../vendor/autoload.php';
 
 use Handlers\BenchHandler;
 use Quill\App;

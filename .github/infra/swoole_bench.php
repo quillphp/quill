@@ -19,7 +19,7 @@ declare(strict_types=1);
  *   SWOOLE_MODE=base SWOOLE_WORKERS=8 php scripts/swoole_bench.php
  */
 
-require __DIR__ . '/../vendor/autoload.php';
+require __DIR__ . '/../../vendor/autoload.php';
 
 use Handlers\BenchHandler;
 use Quill\App;
