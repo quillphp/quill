@@ -1,5 +1,4 @@
 <div align="center">
-  <img src="public/.github/docs/logo.svg" width="100" alt="QuillPHP" />
 
   # QuillPHP
 
