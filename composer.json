@@ -1,0 +1,49 @@
+{
+    "name": "quillphp/quill",
+    "description": "Quill — High-performance PHP 8.3+ API framework. Boot once, serve forever.",
+    "type": "library",
+    "license": "MIT",
+    "keywords": ["php", "api", "framework", "micro", "rest", "openapi", "fast"],
+    "homepage": "https://quillphp.com",
+    "authors": [
+        {
+            "name": "QuillPHP Team",
+            "email": "hello@quillphp.com"
+        }
+    ],
+    "require": {
+        "php": "^8.3",
+        "nikic/fast-route": "^1.3",
+        "vlucas/phpdotenv": "^5.6"
+    },
+    "require-dev": {
+        "phpstan/phpstan": "^2.1",
+        "phpunit/phpunit": "^11"
+    },
+    "autoload": {
+        "psr-4": {
+            "Quill\\": "src/",
+            "Quill\\Attributes\\": "attributes/",
+            "Handlers\\": "handlers/",
+            "Dtos\\": "dtos/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
+    },
+    "bin": [
+        "bin/quill"
+    ],
+    "scripts": {
+        "test": "phpunit tests/",
+        "analyze": "phpstan analyse",
+        "serve": "bin/quill serve",
+        "bench": "bin/quill benchmark"
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "sort-packages": true
+    }
+}

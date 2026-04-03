@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quill API Explorer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0b0e14;
+            --sidebar: #0d1117;
+            --border: #1d222b;
+            --accent: #818cf8;
+            --accent-soft: rgba(129, 140, 248, 0.1);
+            --text-main: #e6edf3;
+            --text-dim: #7d8590;
+            --code-bg: #161b22;
+            --sidebar-width: 300px;
+            --code-width: 420px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            overflow-x: hidden;
+        }
+
+        /* --- Sidebar (Left) --- */
+        aside {
+            width: var(--sidebar-width);
+            background: var(--sidebar);
+            border-right: 1px solid var(--border);
+            height: 100vh;
+            position: sticky;
+            top: 0;
+            display: flex;
+            flex-direction: column;
+            padding: 1.5rem;
+            z-index: 100;
+        }
+
+        .logo-wrap {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 2rem;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+        }
+
+        .logo-text {
+            font-weight: 700;
+            font-size: 1.25rem;
+            letter-spacing: -0.02em;
+        }
+
+        .search {
+            position: relative;
+            margin-bottom: 2rem;
+        }
+
+        .search input {
+            width: 100%;
+            background: #161b22;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.5rem 1rem;
+            color: var(--text-main);
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .search input:focus {
+            border-color: var(--accent);
+        }
+
+        .nav-group {
+            margin-bottom: 2rem;
+        }
+
+        .nav-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.75rem;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0.4rem 0.75rem;
+            color: var(--text-dim);
+            text-decoration: none;
+            border-radius: 6px;
+            transition: all 0.15s;
+            margin-bottom: 2px;
+        }
+
+        .nav-link:hover, .nav-link.active {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .nav-link .method {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 4px;
+            border-radius: 3px;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        /* --- Main Content (Center) --- */
+        main {
+            flex: 1;
+            padding: 4rem;
+            max-width: calc(100vw - var(--sidebar-width) - var(--code-width));
+        }
+
+        .endpoint-section {
+            margin-bottom: 8rem;
+            opacity: 0;
+            transform: translateY(10px);
+            animation: fadeIn 0.4s forwards;
+        }
+
+        @keyframes fadeIn {
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        header { margin-bottom: 3rem; }
+        header h1 { font-size: 2.25rem; font-weight: 800; margin-bottom: 1rem; }
+        header p { color: var(--text-dim); font-size: 1.1rem; }
+
+        .verb-wrap { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+        .full-path { font-family: 'JetBrains Mono', monospace; font-size: 1.1rem; color: var(--accent); }
+
+        .type-label { font-size: 1.1rem; font-weight: 600; margin: 3rem 0 1rem; }
+
+        .prop-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            background: #0d1117;
+        }
+
+        .prop-table th, .prop-table td {
+            text-align: left;
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .prop-table th { background: #161b22; font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; }
+        .prop-name { font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--text-main); }
+        .prop-type { font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: var(--accent); }
+
+        /* --- Code Panel (Right) --- */
+        .code-panel {
+            width: var(--code-width);
+            background: #0d1117;
+            border-left: 1px solid var(--border);
+            height: 100vh;
+            position: sticky;
+            top: 0;
+            padding: 2rem;
+            overflow-y: auto;
+        }
+
+        .panel-block { margin-bottom: 3rem; }
+        .panel-label { font-size: 0.75rem; font-weight: 600; color: var(--text-dim); margin-bottom: 1rem; text-transform: uppercase; }
+
+        pre {
+            background: #010409;
+            padding: 1.25rem;
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: #d1d7e0;
+            border: 1px solid var(--border);
+            line-height: 1.5;
+            position: relative;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: var(--border);
+            border: none;
+            color: var(--text-dim);
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.7rem;
+        }
+
+        .copy-btn:hover { color: var(--text-main); background: #30363d; }
+
+        .badge-get { color: #3fb950; border: 1px solid rgba(63, 185, 80, 0.3); }
+        .badge-post { color: #1f6feb; border: 1px solid rgba(31, 111, 235, 0.3); }
+        .badge-put { color: #d29922; border: 1px solid rgba(210, 153, 34, 0.3); }
+        .badge-delete { color: #f85149; border: 1px solid rgba(248, 81, 73, 0.3); }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .code-panel { display: none; }
+            main { max-width: 100%; }
+        }
+
+        @media (max-width: 800px) {
+            aside { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <aside>
+        <a href="#" class="logo-wrap">
+            <img src="/docs/logo.svg" class="logo-icon" alt="Quill">
+            <span class="logo-text">Quill API</span>
+        </a>
+
+        <div class="search">
+            <input type="text" id="endpoint-search" placeholder="Search endpoints..." oninput="filterNav()">
+        </div>
+
+        <div class="nav-group">
+            <div class="nav-label">Core API</div>
+            <div id="side-nav">
+                <!-- Dynamic -->
+            </div>
+        </div>
+    </aside>
+
+    <main id="main-content">
+        <header>
+            <h1>API Reference</h1>
+            <p>Complete documentation for the Quill API ecosystem. Generated in real-time from application metadata.</p>
+        </header>
+
+        <div id="doc-container">
+            <div style="text-align:center; padding: 5rem; color: var(--text-dim);">
+                Architecting API Explorer...
+            </div>
+        </div>
+    </main>
+
+    <div class="code-panel" id="code-panel">
+        <div id="code-context">
+            <div style="text-align:center; padding-top: 10rem; color: var(--text-dim);">
+                Select an endpoint to view samples.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let apiData = null;
+
+        async function load() {
+            try {
+                const res = await fetch('/docs/openapi.json');
+                apiData = await res.json();
+                renderNav();
+                renderAll();
+                
+                // Track scroll for active nav
+                window.addEventListener('scroll', updateActiveNav);
+            } catch (e) {
+                document.getElementById('doc-container').innerHTML = `<div style="color:var(--f85149)">Failed to connect to OpenAPI source.</div>`;
+            }
+        }
+
+        function renderNav() {
+            const nav = document.getElementById('side-nav');
+            let html = '';
+            for (const [path, methods] of Object.entries(apiData.paths)) {
+                for (const [method, op] of Object.entries(methods)) {
+                    const id = `route-${method}-${path.replace(/[\/{}]/g, '-')}`;
+                    html += `
+                        <a href="#${id}" class="nav-link" data-id="${id}">
+                            <span class="method badge-${method}">${method.toUpperCase()}</span>
+                            <span class="nav-path">${path}</span>
+                        </a>
+                    `;
+                }
+            }
+            nav.innerHTML = html;
+        }
+
+        function renderAll() {
+            const container = document.getElementById('doc-container');
+            let html = '';
+            
+            for (const [path, methods] of Object.entries(apiData.paths)) {
+                for (const [method, op] of Object.entries(methods)) {
+                    const id = `route-${method}-${path.replace(/[\/{}]/g, '-')}`;
+                    html += `
+                        <section class="endpoint-section" id="${id}">
+                            <div class="verb-wrap">
+                                <span class="badge-${method}" style="padding: 4px 12px; border-radius: 99px; font-weight:700; text-transform:uppercase; font-size: 12px;">${method}</span>
+                                <span class="full-path">${path}</span>
+                            </div>
+                            <h2 style="font-size: 1.5rem; margin-bottom: 1rem;">${op.summary || op.operationId || 'Endpoint Detail'}</h2>
+                            <p style="color: var(--text-dim); margin-bottom: 2rem; font-size: 1rem;">
+                                ${op.description || 'No description available for this endpoint.'}
+                            </p>
+
+                            ${op.parameters ? renderParams(op.parameters) : ''}
+                            ${op.requestBody ? renderRequestBody(op.requestBody) : ''}
+                        </section>
+                    `;
+                }
+            }
+            container.innerHTML = html;
+        }
+
+        function renderParams(params) {
+            let html = '<div class="type-label">Path Parameters</div><table class="prop-table"><thead><tr><th>Name</th><th>Type</th><th>Req</th></tr></thead><tbody>';
+            params.forEach(p => {
+                html += `<tr><td class="prop-name">${p.name}</td><td class="prop-type">${p.schema.type}</td><td>${p.required ? '★' : '-'}</td></tr>`;
+            });
+            return html + '</tbody></table>';
+        }
+
+        function renderRequestBody(body) {
+            const ref = body.content['application/json'].schema['$ref'].split('/').pop();
+            const schema = apiData.components.schemas[ref];
+            let html = `<div class="type-label">Request Body (${ref})</div><table class="prop-table"><thead><tr><th>Property</th><th>Type</th><th>Req</th></tr></thead><tbody>`;
+            for (const [name, prop] of Object.entries(schema.properties)) {
+                const req = schema.required && schema.required.includes(name);
+                html += `<tr><td class="prop-name">${name}</td><td class="prop-type">${prop.type}${prop.nullable ? '?' : ''}</td><td>${req ? '★' : '-'}</td></tr>`;
+            }
+            return html + '</tbody></table>';
+        }
+
+        function filterNav() {
+            const query = document.getElementById('endpoint-search').value.toLowerCase();
+            document.querySelectorAll('.nav-link').forEach(link => {
+                const text = link.textContent.toLowerCase();
+                link.style.display = text.includes(query) ? 'flex' : 'none';
+            });
+        }
+
+        function updateActiveNav() {
+            const sections = document.querySelectorAll('.endpoint-section');
+            let current = '';
+
+            sections.forEach(section => {
+                const top = section.offsetTop - 150;
+                if (window.pageYOffset >= top) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.toggle('active', link.getAttribute('data-id') === current);
+            });
+
+            if (current) {
+                const [_, method, ...pathParts] = current.split('-');
+                const path = '/' + pathParts.join('/').replace(/-id/g, '{id}');
+                updateCodePanel(method, path);
+            }
+        }
+
+        function updateCodePanel(method, path) {
+            const panel = document.getElementById('code-context');
+            const op = apiData.paths[path][method.toLowerCase()];
+            
+            let curl = `curl -X ${method.toUpperCase()} "http://localhost:8000${path}" \\\n  -H "Accept: application/json"`;
+            if (op.requestBody) {
+                curl += ` \\\n  -d '{"example": "data"}'`;
+            }
+
+            panel.innerHTML = `
+                <div class="panel-block">
+                    <div class="panel-label">HTTP REQUEST</div>
+                    <pre><button class="copy-btn" onclick="copy(this)">Copy</button>${curl}</pre>
+                </div>
+                <div class="panel-block">
+                    <div class="panel-label">EXPECTED RESPONSE</div>
+                    <pre>{\n  "status": 200,\n  "data": { "success": true }\n}</pre>
+                </div>
+            `;
+        }
+
+        function copy(btn) {
+            const text = btn.nextSibling.textContent;
+            navigator.clipboard.writeText(text);
+            btn.textContent = 'Copied!';
+            setTimeout(() => btn.textContent = 'Copy', 2000);
+        }
+
+        load();
+    </script>
+</body>
+</html>

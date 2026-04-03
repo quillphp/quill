@@ -1,0 +1,84 @@
+# =============================================================================
+# Quill -- Swoole Benchmark Image
+# =============================================================================
+# Uses php:8.3-cli-alpine which is NTS (non-thread-safe).
+# NTS PHP supports the JIT compiler — unlike FrankenPHP's ZTS build.
+#
+# Build context: quill/   (one level above scripts/)
+# =============================================================================
+
+FROM php:8.3-cli-alpine
+
+# ── Swoole extension ──────────────────────────────────────────────────────────
+# brotli-dev is needed at compile-time (Swoole enables brotli by default).
+# After the build, build tools are removed but brotli-libs is re-added so
+# the compiled swoole.so can still load at runtime.
+RUN apk add --no-cache $PHPIZE_DEPS linux-headers openssl-dev brotli-dev && \
+    pecl install swoole && \
+    docker-php-ext-enable swoole && \
+    apk del --no-cache $PHPIZE_DEPS openssl-dev brotli-dev && \
+    apk add --no-cache \
+        brotli-libs \
+        libstdc++   # swoole.so links against libstdc++ at runtime
+
+# Enable the OPcache extension only — NO preload configured here.
+# The full ini (with opcache.preload) is written AFTER preload.php is copied;
+# if it were written now, every subsequent RUN step would start PHP and
+# immediately crash trying to load a not-yet-existing preload script.
+RUN docker-php-ext-enable opcache
+
+# ── Composer ─────────────────────────────────────────────────────────────────
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+WORKDIR /app
+
+# Copy dependency manifests first — Docker caches this layer until they change.
+COPY composer.json composer.lock ./
+
+# Install production dependencies with classmap-authoritative autoloader.
+# --classmap-authoritative: ALL classes are in the classmap; Composer skips
+# the PSR-4 filesystem fallback, eliminating one stat() per unknown class.
+RUN composer install --no-dev --optimize-autoloader --classmap-authoritative \
+        --no-interaction --no-progress
+
+# ── Application source ───────────────────────────────────────────────────────
+COPY src/         src/
+COPY attributes/  attributes/
+COPY dtos/        dtos/
+COPY handlers/    handlers/
+COPY scripts/swoole_bench.php public/index.php
+COPY scripts/preload.php      scripts/preload.php
+
+# ── OPcache + JIT tuning (written AFTER all files are in place) ──────────────
+# NTS PHP — JIT tracing is fully supported here.
+# jit=tracing / jit_buffer_size=256M → tracing JIT, best for web workloads.
+# preload compiles all framework classes at worker start so JIT can trace
+# from the very first warm request.
+RUN { \
+        echo "opcache.enable=1"; \
+        echo "opcache.enable_cli=1"; \
+        echo "opcache.memory_consumption=256"; \
+        echo "opcache.interned_strings_buffer=32"; \
+        echo "opcache.max_accelerated_files=20000"; \
+        echo "opcache.validate_timestamps=0"; \
+        echo "opcache.save_comments=0"; \
+        echo "opcache.jit=tracing"; \
+        echo "opcache.jit_buffer_size=256M"; \
+        echo "opcache.preload=/app/scripts/preload.php"; \
+        echo "opcache.preload_user=root"; \
+        echo "realpath_cache_size=4096K"; \
+        echo "realpath_cache_ttl=600"; \
+    } > /usr/local/etc/php/conf.d/99-quill-opcache.ini
+
+# Worker count: set to available_cpus - h2load_threads for benchmarking.
+# For production (no co-located benchmarker): use vCPU count.
+# SWOOLE_MODE=base enables SWOOLE_BASE (no master-process pipe) — faster on
+# Linux with SO_REUSEPORT; keep 'process' (default) on macOS/Docker Desktop.
+ENV SWOOLE_WORKERS=4
+ENV SWOOLE_PORT=8080
+ENV SWOOLE_MODE=process
+ENV QUILL_GC_INTERVAL=0
+
+EXPOSE 8080
+
+CMD ["php", "public/index.php"]

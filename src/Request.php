@@ -1,0 +1,183 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Quill;
+
+/**
+ * Native-first Request wrapper.
+ * Directly wraps $_SERVER, $_GET, and php://input for zero allocation.
+ */
+class Request
+{
+    /** @var array<string, string> */
+    private array $pathVars = [];
+    /** @var array<string, mixed>|null */
+    private ?array $jsonBody = null;
+    private ?string $rawInputOverride = null;
+    private ?string $methodOverride = null;
+    private ?string $pathOverride = null;
+    /**
+     * Swoole headers (lowercase keys). Set via withSwooleHeaders() to avoid
+     * populating all $_SERVER['HTTP_*'] keys on every request.
+     * @var array<string, string>|null
+     */
+    private ?array $swooleHeaders = null;
+
+    public function method(): string
+    {
+        return $this->methodOverride ?? $_SERVER['REQUEST_METHOD'] ?? 'GET';
+    }
+
+    /**
+     * Best-effort client IP address.
+     * Respects X-Forwarded-For when set (reverse-proxy environments).
+     */
+    public function ip(): string
+    {
+        if ($this->swooleHeaders !== null) {
+            if (!empty($this->swooleHeaders['x-forwarded-for'])) {
+                return trim(explode(',', $this->swooleHeaders['x-forwarded-for'])[0]);
+            }
+            return $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+        }
+        if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+            // X-Forwarded-For can be a comma-separated list; take the first entry.
+            return trim(explode(',', $_SERVER['HTTP_X_FORWARDED_FOR'])[0]);
+        }
+        return $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+    }
+
+    /**
+     * Retrieve a request header value (case-insensitive).
+     * Returns null when the header is absent.
+     * When Swoole headers are injected via withSwooleHeaders(), they are looked
+     * up directly (O(1)) without touching $_SERVER.
+     */
+    public function header(string $name, ?string $default = null): ?string
+    {
+        if ($this->swooleHeaders !== null) {
+            // Swoole headers are already lowercase; normalise the lookup key.
+            return $this->swooleHeaders[strtolower($name)] ?? $default;
+        }
+        // PHP exposes headers as HTTP_<UPPERCASE_NAME_WITH_UNDERSCORES>
+        $key = 'HTTP_' . strtoupper(str_replace('-', '_', $name));
+        return $_SERVER[$key] ?? $default;
+    }
+
+    /**
+     * HTTP protocol string, e.g. "HTTP/1.1" or "HTTP/2.0".
+     */
+    public function protocol(): string
+    {
+        return $_SERVER['SERVER_PROTOCOL'] ?? 'HTTP/1.1';
+    }
+
+    public function path(): string
+    {
+        if ($this->pathOverride !== null) {
+            return $this->pathOverride;
+        }
+
+        $uri = $_SERVER['REQUEST_URI'] ?? '/';
+        if (false !== $pos = strpos($uri, '?')) {
+            $uri = substr($uri, 0, $pos);
+        }
+        // Only pay for rawurldecode when the path actually contains percent-encoded chars.
+        return strpos($uri, '%') !== false ? rawurldecode($uri) : $uri;
+    }
+
+    public function query(string $key, mixed $default = null): mixed
+    {
+        return $_GET[$key] ?? $default;
+    }
+
+    /**
+     * @param array<string, string> $vars
+     */
+    public function setPathVars(array $vars): void
+    {
+        $this->pathVars = $vars;
+    }
+
+    public function param(string $key, mixed $default = null): mixed
+    {
+        return $this->pathVars[$key] ?? $default;
+    }
+
+    /**
+     * Override the raw input body (for testing without a real HTTP request).
+     */
+    public function withInput(string $raw): static
+    {
+        $clone = clone $this;
+        $clone->rawInputOverride = $raw;
+        $clone->jsonBody = null; // reset parse cache
+        return $clone;
+    }
+
+    /**
+     * Inject Swoole request headers directly into this Request, bypassing the
+     * need to populate all $_SERVER['HTTP_*'] keys on every request.
+     *
+     * Swoole provides headers with lowercase keys (HTTP/2 convention).
+     * Used by App::handleSwooleRequest() for the zero-overhead hot path.
+     *
+     * @param array<string, string> $headers
+     */
+    public function withSwooleHeaders(array $headers): static
+    {
+        $clone = clone $this;
+        $clone->swooleHeaders = $headers;
+        return $clone;
+    }
+
+    /**
+     * Override the HTTP method (for testing).
+     */
+    public function withMethod(string $method): static
+    {
+        $clone = clone $this;
+        $clone->methodOverride = strtoupper($method);
+        return $clone;
+    }
+
+    /**
+     * Override the URI path (for testing).
+     */
+    public function withPath(string $path): static
+    {
+        $clone = clone $this;
+        $clone->pathOverride = $path;
+        return $clone;
+    }
+
+    /**
+     * Parse and cache the JSON input body.
+     * @return array<string, mixed>
+     */
+    public function json(): array
+    {
+        if ($this->jsonBody !== null) {
+            return $this->jsonBody;
+        }
+
+        $input = $this->rawInputOverride ?? file_get_contents('php://input');
+
+        if (empty($input)) {
+            return $this->jsonBody = [];
+        }
+
+        if (strlen($input) > 2 * 1024 * 1024) {
+            throw new \InvalidArgumentException('Payload too large.');
+        }
+
+        try {
+            $decoded = json_decode($input, true, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            throw new \InvalidArgumentException('Invalid JSON body.');
+        }
+
+        return $this->jsonBody = $decoded;
+    }
+}

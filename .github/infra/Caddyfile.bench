@@ -1,0 +1,49 @@
+{
+    frankenphp {
+        # Worker mode: PHP boots once, handles millions of requests in a loop.
+        # The global worker block dispatches ALL PHP requests to the pool.
+        # App::run() detects $_SERVER['FRANKENPHP_WORKER'] and enters the loop.
+        worker {
+            file /app/public/index.php
+            # {$VAR} is Caddy's env-var substitution syntax in Caddyfiles.
+            # The ENV default in the Dockerfile ensures this is never empty.
+            # Rule of thumb: 2× vCPU count for I/O-bound workloads.
+            num {$FRANKENPHP_NUM_WORKERS}
+            # High max_requests avoids recycling workers during a benchmark run
+            # (recycling re-JITs the app and causes latency spikes).
+            # Lower this (e.g. 10000) in production to cap memory growth.
+            max_requests 500000
+        }
+    }
+
+    # Register php_server as an ordered HTTP handler (required by Caddy)
+    order php_server before file_server
+
+    # Enable HTTP/2 cleartext (h2c) on all plain-HTTP servers.
+    # h2load v1.64+ dropped --insecure, so it cannot connect over self-signed
+    # TLS.  The :8080 site below uses h2c instead -- no cert required.
+    servers {
+        protocols h1 h2 h2c
+    }
+
+    # Disable Caddy admin API (not needed for benchmarking)
+    admin off
+}
+
+# ── HTTPS (TLS) ──────────────────────────────────────────────────────────────
+# Used only for the Docker health-check (curl -k inside the container).
+# Caddy's internal CA issues a cert for "localhost".
+localhost {
+    root * /app/public
+    php_server
+    tls internal
+}
+
+# ── HTTP/2 cleartext (h2c) ────────────────────────────────────────────────────
+# h2load connects here -- no TLS, no cert-verification issues.
+# All benchmark measurements (GET /hello, GET /users/42, POST /echo) use
+# this port.
+:8080 {
+    root * /app/public
+    php_server
+}
