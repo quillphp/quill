@@ -17,8 +17,8 @@
             --text-main: #e6edf3;
             --text-dim: #7d8590;
             --code-bg: #161b22;
-            --sidebar-width: 300px;
-            --code-width: 420px;
+            --sidebar-width: 280px;
+            --code-width: 480px;
         }
 
         * {
@@ -30,12 +30,13 @@
         body {
             background-color: var(--bg);
             color: var(--text-main);
-            font-family: 'Inter', sans-serif;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
             font-size: 14px;
             line-height: 1.6;
             min-height: 100vh;
             display: flex;
             overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
         }
 
         /* --- Sidebar (Left) --- */
@@ -56,20 +57,24 @@
             display: flex;
             align-items: center;
             gap: 12px;
-            margin-bottom: 2rem;
+            margin-bottom: 2.5rem;
             text-decoration: none;
             color: inherit;
         }
 
         .logo-icon {
-            width: 32px;
-            height: 32px;
+            width: 28px;
+            height: 28px;
+            filter: drop-shadow(0 0 8px var(--accent-soft));
         }
 
         .logo-text {
             font-weight: 700;
-            font-size: 1.25rem;
-            letter-spacing: -0.02em;
+            font-size: 1.2rem;
+            letter-spacing: -0.03em;
+            background: linear-gradient(135deg, #fff 0%, #7d8590 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
         .search {
@@ -79,104 +84,138 @@
 
         .search input {
             width: 100%;
-            background: #161b22;
+            background: rgba(22, 27, 34, 0.5);
             border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            padding: 0.6rem 1rem;
             color: var(--text-main);
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             outline: none;
-            transition: border-color 0.2s;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .search input:focus {
             border-color: var(--accent);
+            background: #161b22;
+            box-shadow: 0 0 0 3px var(--accent-soft);
         }
 
         .nav-group {
             margin-bottom: 2rem;
+            overflow-y: auto;
+            flex: 1;
         }
 
         .nav-label {
-            font-size: 0.75rem;
-            font-weight: 600;
+            font-size: 0.7rem;
+            font-weight: 700;
             color: var(--text-dim);
             text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-bottom: 0.75rem;
+            letter-spacing: 0.08em;
+            margin-bottom: 1rem;
+            padding-left: 0.75rem;
         }
 
         .nav-link {
             display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 0.4rem 0.75rem;
+            gap: 10px;
+            padding: 0.5rem 0.8rem;
             color: var(--text-dim);
             text-decoration: none;
-            border-radius: 6px;
-            transition: all 0.15s;
-            margin-bottom: 2px;
+            border-radius: 8px;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            margin-bottom: 4px;
+            font-size: 0.9rem;
         }
 
-        .nav-link:hover, .nav-link.active {
+        .nav-link:hover {
             color: var(--text-main);
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .nav-link.active {
+            color: var(--accent);
+            background: var(--accent-soft);
+            font-weight: 500;
         }
 
         .nav-link .method {
-            font-size: 10px;
-            font-weight: 700;
-            padding: 2px 4px;
-            border-radius: 3px;
-            min-width: 40px;
+            font-size: 9px;
+            font-weight: 800;
+            padding: 2px 6px;
+            border-radius: 4px;
+            min-width: 44px;
             text-align: center;
+            letter-spacing: 0.02em;
         }
 
         /* --- Main Content (Center) --- */
         main {
             flex: 1;
-            padding: 4rem;
+            padding: 4rem 5rem;
             max-width: calc(100vw - var(--sidebar-width) - var(--code-width));
+            background: radial-gradient(circle at 100% 0%, var(--accent-soft) 0%, transparent 25%);
         }
 
         .endpoint-section {
-            margin-bottom: 8rem;
+            margin-bottom: 10rem;
             opacity: 0;
-            transform: translateY(10px);
-            animation: fadeIn 0.4s forwards;
+            transform: translateY(20px);
+            animation: fadeIn 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
         }
 
         @keyframes fadeIn {
             to { opacity: 1; transform: translateY(0); }
         }
 
-        header { margin-bottom: 3rem; }
-        header h1 { font-size: 2.25rem; font-weight: 800; margin-bottom: 1rem; }
-        header p { color: var(--text-dim); font-size: 1.1rem; }
+        header { margin-bottom: 4rem; position: relative; }
+        header::after {
+            content: '';
+            position: absolute;
+            bottom: -2rem;
+            left: 0;
+            width: 100px;
+            height: 1px;
+            background: linear-gradient(90deg, var(--accent), transparent);
+        }
+        header h1 { font-size: 2.5rem; font-weight: 850; letter-spacing: -0.04em; margin-bottom: 1rem; }
+        header p { color: var(--text-dim); font-size: 1.15rem; max-width: 600px; }
 
-        .verb-wrap { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
-        .full-path { font-family: 'JetBrains Mono', monospace; font-size: 1.1rem; color: var(--accent); }
+        .verb-wrap { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
+        .full-path { font-family: 'JetBrains Mono', monospace; font-size: 1.2rem; color: var(--accent); letter-spacing: -0.01em; }
 
-        .type-label { font-size: 1.1rem; font-weight: 600; margin: 3rem 0 1rem; }
+        .type-label { font-size: 1.2rem; font-weight: 700; margin: 4rem 0 1.5rem; letter-spacing: -0.02em; }
 
         .prop-table {
             width: 100%;
-            border-collapse: collapse;
+            border-collapse: separate;
+            border-spacing: 0;
             border: 1px solid var(--border);
-            border-radius: 8px;
+            border-radius: 12px;
             overflow: hidden;
-            background: #0d1117;
+            background: rgba(13, 17, 23, 0.5);
+            backdrop-filter: blur(8px);
         }
 
         .prop-table th, .prop-table td {
             text-align: left;
-            padding: 1rem;
+            padding: 1.25rem 1.5rem;
             border-bottom: 1px solid var(--border);
         }
 
-        .prop-table th { background: #161b22; font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; }
-        .prop-name { font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--text-main); }
-        .prop-type { font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: var(--accent); }
+        .prop-table tr:last-child td { border-bottom: none; }
+
+        .prop-table th { 
+            background: rgba(22, 27, 34, 0.8); 
+            font-size: 0.75rem; 
+            color: var(--text-dim); 
+            text-transform: uppercase; 
+            letter-spacing: 0.05em; 
+            font-weight: 700;
+        }
+        .prop-name { font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--text-main); font-size: 0.95rem; }
+        .prop-type { font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: var(--accent); opacity: 0.9; }
 
         /* --- Code Panel (Right) --- */
         .code-panel {
@@ -186,46 +225,69 @@
             height: 100vh;
             position: sticky;
             top: 0;
-            padding: 2rem;
+            padding: 3rem 2.5rem;
             overflow-y: auto;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(129, 140, 248, 0.05) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(129, 140, 248, 0.02) 0px, transparent 50%);
         }
 
-        .panel-block { margin-bottom: 3rem; }
-        .panel-label { font-size: 0.75rem; font-weight: 600; color: var(--text-dim); margin-bottom: 1rem; text-transform: uppercase; }
+        .panel-block { margin-bottom: 4rem; }
+        .panel-label { 
+            font-size: 0.7rem; 
+            font-weight: 700; 
+            color: var(--text-dim); 
+            margin-bottom: 1.25rem; 
+            text-transform: uppercase; 
+            letter-spacing: 0.1em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .panel-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 
         pre {
             background: #010409;
-            padding: 1.25rem;
-            border-radius: 8px;
+            padding: 1.5rem;
+            border-radius: 12px;
             font-family: 'JetBrains Mono', monospace;
             font-size: 0.85rem;
             color: #d1d7e0;
             border: 1px solid var(--border);
-            line-height: 1.5;
+            line-height: 1.6;
             position: relative;
+            transition: border-color 0.3s;
         }
+
+        pre:hover { border-color: rgba(129, 140, 248, 0.4); }
 
         .copy-btn {
             position: absolute;
-            top: 10px;
-            right: 10px;
-            background: var(--border);
-            border: none;
+            top: 12px;
+            right: 12px;
+            background: rgba(29, 34, 43, 0.8);
+            border: 1px solid var(--border);
             color: var(--text-dim);
-            padding: 4px 8px;
-            border-radius: 4px;
+            padding: 6px 10px;
+            border-radius: 6px;
             cursor: pointer;
-            font-size: 0.7rem;
+            font-size: 0.75rem;
+            backdrop-filter: blur(4px);
+            transition: all 0.2s;
         }
 
-        .copy-btn:hover { color: var(--text-main); background: #30363d; }
+        .copy-btn:hover { color: var(--text-main); border-color: var(--accent); }
 
-        .badge-get { color: #3fb950; border: 1px solid rgba(63, 185, 80, 0.3); }
-        .badge-post { color: #1f6feb; border: 1px solid rgba(31, 111, 235, 0.3); }
-        .badge-put { color: #d29922; border: 1px solid rgba(210, 153, 34, 0.3); }
-        .badge-delete { color: #f85149; border: 1px solid rgba(248, 81, 73, 0.3); }
+        .badge-get { color: #3fb950; background: rgba(63, 185, 80, 0.1); border: 1px solid rgba(63, 185, 80, 0.3); }
+        .badge-post { color: #1f6feb; background: rgba(31, 111, 235, 0.1); border: 1px solid rgba(31, 111, 235, 0.3); }
+        .badge-put { color: #d29922; background: rgba(210, 153, 34, 0.1); border: 1px solid rgba(210, 153, 34, 0.3); }
+        .badge-delete { color: #f85149; background: rgba(248, 81, 73, 0.1); border: 1px solid rgba(248, 81, 73, 0.3); }
 
         /* Responsive */
+        @media (max-width: 1400px) {
+            :root { --code-width: 400px; }
+        }
+
         @media (max-width: 1200px) {
             .code-panel { display: none; }
             main { max-width: 100%; }
@@ -233,6 +295,7 @@
 
         @media (max-width: 800px) {
             aside { display: none; }
+            main { padding: 2rem; }
         }
     </style>
 </head>
@@ -240,7 +303,7 @@
     <aside>
         <a href="#" class="logo-wrap">
             <img src="/docs/logo.svg" class="logo-icon" alt="Quill">
-            <span class="logo-text">Quill API</span>
+            <span class="logo-text">Quill Explorer</span>
         </a>
 
         <div class="search">
@@ -289,7 +352,7 @@
                 // Track scroll for active nav
                 window.addEventListener('scroll', updateActiveNav);
             } catch (e) {
-                document.getElementById('doc-container').innerHTML = `<div style="color:var(--f85149)">Failed to connect to OpenAPI source.</div>`;
+                document.getElementById('doc-container').innerHTML = `<div style="color:var(--f85149); padding: 2rem; border: 1px solid var(--border); border-radius: 12px; background: rgba(248, 81, 73, 0.05);">Failed to connect to OpenAPI source. Ensure the server is running.</div>`;
             }
         }
 
@@ -320,11 +383,11 @@
                     html += `
                         <section class="endpoint-section" id="${id}">
                             <div class="verb-wrap">
-                                <span class="badge-${method}" style="padding: 4px 12px; border-radius: 99px; font-weight:700; text-transform:uppercase; font-size: 12px;">${method}</span>
+                                <span class="badge-${method}" style="padding: 4px 12px; border-radius: 99px; font-weight:800; text-transform:uppercase; font-size: 11px; letter-spacing: 0.02em;">${method}</span>
                                 <span class="full-path">${path}</span>
                             </div>
-                            <h2 style="font-size: 1.5rem; margin-bottom: 1rem;">${op.summary || op.operationId || 'Endpoint Detail'}</h2>
-                            <p style="color: var(--text-dim); margin-bottom: 2rem; font-size: 1rem;">
+                            <h2 style="font-size: 1.75rem; font-weight: 800; margin-bottom: 1rem; letter-spacing: -0.03em;">${op.summary || op.operationId || 'Endpoint Detail'}</h2>
+                            <p style="color: var(--text-dim); margin-bottom: 2.5rem; font-size: 1.05rem;">
                                 ${op.description || 'No description available for this endpoint.'}
                             </p>
 
@@ -340,7 +403,7 @@
         function renderParams(params) {
             let html = '<div class="type-label">Path Parameters</div><table class="prop-table"><thead><tr><th>Name</th><th>Type</th><th>Req</th></tr></thead><tbody>';
             params.forEach(p => {
-                html += `<tr><td class="prop-name">${p.name}</td><td class="prop-type">${p.schema.type}</td><td>${p.required ? '★' : '-'}</td></tr>`;
+                html += `<tr><td class="prop-name">${p.name}</td><td class="prop-type">${p.schema.type}</td><td style="color: var(--accent)">${p.required ? '★' : '-'}</td></tr>`;
             });
             return html + '</tbody></table>';
         }
@@ -351,7 +414,7 @@
             let html = `<div class="type-label">Request Body (${ref})</div><table class="prop-table"><thead><tr><th>Property</th><th>Type</th><th>Req</th></tr></thead><tbody>`;
             for (const [name, prop] of Object.entries(schema.properties)) {
                 const req = schema.required && schema.required.includes(name);
-                html += `<tr><td class="prop-name">${name}</td><td class="prop-type">${prop.type}${prop.nullable ? '?' : ''}</td><td>${req ? '★' : '-'}</td></tr>`;
+                html += `<tr><td class="prop-name">${name}</td><td class="prop-type">${prop.type}${prop.nullable ? '?' : ''}</td><td style="color: var(--accent)">${req ? '★' : '-'}</td></tr>`;
             }
             return html + '</tbody></table>';
         }

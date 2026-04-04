@@ -28,7 +28,7 @@ class ContainerTest extends TestCase
 
         ob_start();
         $app->handle();
-        $response = ob_get_clean();
+        $response = (string) ob_get_clean();
 
         $this->assertStringContainsString('manual', $response);
     }
@@ -51,7 +51,7 @@ class ContainerTest extends TestCase
 
         ob_start();
         $app->handle();
-        $response = ob_get_clean();
+        $response = (string) ob_get_clean();
 
         $this->assertStringContainsString('autowired', $response);
     }
@@ -72,7 +72,7 @@ class ContainerTest extends TestCase
 
         ob_start();
         $app->handle();
-        $response = ob_get_clean();
+        $response = (string) ob_get_clean();
 
         $this->assertStringContainsString('via-middleware', $response);
     }
@@ -87,13 +87,14 @@ class SomeDependency
 class HandlerWithDependency
 {
     public function __construct(private SomeDependency $dep) {}
+    /** @return array<string, mixed> */
     public function handle(): array { return ['val' => $this->dep->getValue()]; }
 }
 
 class MiddlewareWithDependency
 {
     public function __construct(private SomeDependency $dep) {}
-    public function handle(Request $request, callable $next) {
+    public function handle(Request $request, callable $next): mixed {
         $response = $next($request);
         if (is_array($response)) {
             $response['mid'] = $this->dep->getValue();
@@ -104,7 +105,8 @@ class MiddlewareWithDependency
 
 class SimpleContainer implements ContainerInterface
 {
+    /** @param array<string, mixed> $entries */
     public function __construct(private array $entries = []) {}
-    public function get(string $id) { return $this->entries[$id]; }
+    public function get(string $id): mixed { return $this->entries[$id]; }
     public function has(string $id): bool { return isset($this->entries[$id]); }
 }

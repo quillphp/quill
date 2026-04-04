@@ -47,6 +47,7 @@ class ApcuCache implements CacheInterface
             $prefixedKeys[] = $this->prefix . $key;
         }
 
+        /** @var array<string, mixed> $results */
         $results = apcu_fetch($prefixedKeys);
         $final = [];
 

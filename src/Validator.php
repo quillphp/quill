@@ -19,6 +19,8 @@ class Validator
     /**
      * Reflect a DTO class and cache its metadata.
      * Paid ONCE at boot.
+     *
+     * @param class-string $dtoClass
      */
     public static function register(string $dtoClass): void
     {
@@ -26,6 +28,7 @@ class Validator
             return;
         }
 
+        /** @var class-string $dtoClass */
         $reflection = new \ReflectionClass($dtoClass);
         $properties = $reflection->getProperties(\ReflectionProperty::IS_PUBLIC);
         
@@ -121,11 +124,11 @@ class Validator
     private static function cast(mixed $value, string $type): mixed
     {
         return match ($type) {
-            'int' => (int)$value,
-            'float' => (float)$value,
-            'bool' => filter_var($value, FILTER_VALIDATE_BOOLEAN),
-            'string' => (string)$value,
-            default => $value,
+            'int'    => is_scalar($value) ? (int)$value : 0,
+            'float'  => is_scalar($value) ? (float)$value : 0.0,
+            'bool'   => filter_var($value, FILTER_VALIDATE_BOOLEAN),
+            'string' => is_scalar($value) || (is_object($value) && method_exists($value, '__toString')) ? (string)$value : '',
+            default  => $value,
         };
     }
 }

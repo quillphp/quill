@@ -24,12 +24,13 @@ class CacheTest extends TestCase
     protected function tearDown(): void
     {
         if (is_dir($this->cacheDir)) {
-            array_map('unlink', glob("$this->cacheDir/*.*"));
+            $files = glob("$this->cacheDir/*.*");
+            array_map('unlink', is_array($files) ? $files : []);
             rmdir($this->cacheDir);
         }
     }
 
-    public function testFileCacheBasics()
+    public function testFileCacheBasics(): void
     {
         $cache = new FileCache($this->cacheDir);
         
@@ -49,10 +50,10 @@ class CacheTest extends TestCase
     /**
      * @requires extension apcu
      */
-    public function testApcuCacheBasics()
+    public function testApcuCacheBasics(): void
     {
-        if (!function_exists('apcu_store')) {
-             $this->markTestSkipped('APCu extension not available.');
+        if (!function_exists('apcu_store') || !ini_get('apc.enabled')) {
+             $this->markTestSkipped('APCu extension not available or disabled.');
         }
 
         if (PHP_SAPI === 'cli' && !ini_get('apc.enable_cli')) {
@@ -70,7 +71,7 @@ class CacheTest extends TestCase
     /**
      * @requires extension swoole
      */
-    public function testSwooleTableCacheBasics()
+    public function testSwooleTableCacheBasics(): void
     {
         if (!class_exists('Swoole\Table')) {
             $this->markTestSkipped('Swoole extension not available.');
@@ -81,12 +82,13 @@ class CacheTest extends TestCase
         $this->assertEquals('fast', $cache->get('ultra'));
         
         $cache->setMultiple(['a' => 1, 'b' => 2]);
+        /** @var array<string, mixed> $results */
         $results = $cache->getMultiple(['a', 'b']);
         $this->assertEquals(1, $results['a']);
         $this->assertEquals(2, $results['b']);
     }
 
-    public function testCacheTtl()
+    public function testCacheTtl(): void
     {
         $cache = new FileCache($this->cacheDir);
         $cache->set('temp', 'value', 1); // 1 second

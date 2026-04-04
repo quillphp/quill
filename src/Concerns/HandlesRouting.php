@@ -13,7 +13,7 @@ trait HandlesRouting
 {
     /** @var array<array{string, string, callable|array<string>}> */
     private array $handlers = [];
-    /** @var array<string, string> */
+    /** @var array<int, string> */
     private array $groupStack = [];
 
     /**

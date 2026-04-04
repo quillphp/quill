@@ -14,7 +14,7 @@ class DatabaseTest extends TestCase
     /**
      * @requires PHP 8.3
      */
-    public function testEloquentBridgeBoot()
+    public function testEloquentBridgeBoot(): void
     {
         if (!class_exists('Illuminate\Database\Capsule\Manager')) {
             $this->markTestSkipped('Eloquent not installed.');
@@ -33,7 +33,7 @@ class DatabaseTest extends TestCase
         $this->assertTrue($app->has('db'));
     }
 
-    public function testDoctrineBridgeBoot()
+    public function testDoctrineBridgeBoot(): void
     {
         if (!class_exists('Doctrine\ORM\EntityManager')) {
             $this->markTestSkipped('Doctrine ORM not installed.');

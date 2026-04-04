@@ -10,7 +10,7 @@ use Quill\Request;
 
 class CorsTest extends TestCase
 {
-    public function testOptionsRequestShortCircuitsWithoutCallingNext()
+    public function testOptionsRequestShortCircuitsWithoutCallingNext(): void
     {
         $_SERVER['REQUEST_METHOD'] = 'OPTIONS';
 
@@ -28,7 +28,7 @@ class CorsTest extends TestCase
         $this->assertEquals([], $result);
     }
 
-    public function testNonOptionsRequestPassesThroughToHandler()
+    public function testNonOptionsRequestPassesThroughToHandler(): void
     {
         $_SERVER['REQUEST_METHOD'] = 'GET';
         $_SERVER['HTTP_ORIGIN']    = 'http://example.com';
@@ -42,7 +42,7 @@ class CorsTest extends TestCase
         $this->assertEquals('handler_result', $result);
     }
 
-    public function testWildcardOriginAllowsAnyOrigin()
+    public function testWildcardOriginAllowsAnyOrigin(): void
     {
         $_SERVER['REQUEST_METHOD'] = 'GET';
         $_SERVER['HTTP_ORIGIN']    = 'http://random.com';
@@ -56,7 +56,7 @@ class CorsTest extends TestCase
         $this->assertEquals('ok', $result);
     }
 
-    public function testAppHandlesOptionsPreflightWithCors()
+    public function testAppHandlesOptionsPreflightWithCors(): void
     {
         $_SERVER['REQUEST_METHOD'] = 'OPTIONS';
         $_SERVER['REQUEST_URI']    = '/users';

@@ -30,7 +30,7 @@ class SwooleTableCache implements CacheInterface
     public function get(string $key, mixed $default = null): mixed
     {
         $row = $this->table->get($key);
-        if (!$row) {
+        if (!is_array($row) || !isset($row['e'], $row['v'])) {
             return $default;
         }
 
@@ -39,7 +39,8 @@ class SwooleTableCache implements CacheInterface
             return $default;
         }
 
-        return unserialize($row['v']);
+        $val = $row['v'];
+        return is_string($val) ? unserialize($val) : $default;
     }
 
     public function set(string $key, mixed $value, \DateInterval|int|null $ttl = null): bool
@@ -59,7 +60,9 @@ class SwooleTableCache implements CacheInterface
     public function clear(): bool
     {
         foreach ($this->table as $key => $row) {
-            $this->table->del($key);
+            if (is_string($key)) {
+                $this->table->del($key);
+            }
         }
         return true;
     }
@@ -98,7 +101,7 @@ class SwooleTableCache implements CacheInterface
     public function has(string $key): bool
     {
         $row = $this->table->get($key);
-        if (!$row) return false;
+        if (!is_array($row) || !isset($row['e'])) return false;
         
         if ($row['e'] > 0 && time() > $row['e']) {
             $this->table->del($key);

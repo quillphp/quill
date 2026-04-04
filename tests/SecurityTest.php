@@ -44,7 +44,7 @@ class SecurityTest extends TestCase
         }
 
         $this->assertEquals(429, http_response_code());
-        $this->assertStringContainsString('Too Many Requests', $response);
+        $this->assertStringContainsString('Too Many Requests', (string)$response);
     }
 
     public function testCorsRegexOrigins(): void
@@ -84,7 +84,7 @@ class SecurityTest extends TestCase
         $app->handle();
         $output = ob_get_clean();
 
-        $this->assertStringContainsString('secure', $output);
+        $this->assertStringContainsString('secure', (string)$output);
         // In a real environment, we'd check headers. Here we check that the 
         // middleware executed and didn't block the response.
     }

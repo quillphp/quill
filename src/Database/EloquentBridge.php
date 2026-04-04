@@ -25,8 +25,10 @@ class EloquentBridge
         $capsule = new Capsule;
 
         // 1. Add connections
-        if (isset($config['connections'])) {
-            foreach ($config['connections'] as $name => $conn) {
+        if (isset($config['connections']) && is_array($config['connections'])) {
+            /** @var array<string, array<string, mixed>> $connections */
+            $connections = $config['connections'];
+            foreach ($connections as $name => $conn) {
                 $capsule->addConnection($conn, $name === ($config['default'] ?? 'default') ? 'default' : $name);
             }
         } else {

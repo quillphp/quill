@@ -29,7 +29,7 @@ class APCuRateLimitStorage implements RateLimitStorageInterface
         $count = apcu_inc($fullKey, 1, $success, $window);
         
         // Return current count, or 1 if increment failed
-        return $success ? $count : 1;
+        return is_int($count) ? $count : 1;
     }
 
     public function reset(string $key): void

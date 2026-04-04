@@ -10,7 +10,7 @@ use Quill\Request;
 
 class MiddlewareTest extends TestCase
 {
-    public function testPipelineExecutionOrder()
+    public function testPipelineExecutionOrder(): void
     {
         $pipeline = new Pipeline();
         $request = new Request();
@@ -35,7 +35,7 @@ class MiddlewareTest extends TestCase
         $this->assertEquals('M1(M2(Handler))', $result);
     }
 
-    public function testMiddlewareShortCircuit()
+    public function testMiddlewareShortCircuit(): void
     {
         $pipeline = new Pipeline();
         $request = new Request();

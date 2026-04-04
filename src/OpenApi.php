@@ -63,7 +63,10 @@ class OpenApi
                 $this->analyzeArrayHandler($handler, $operation, $openapi);
             }
 
-            $openapi['paths'][$normalizedPath][$method] = $operation;
+            /** @var array<string, array<string, mixed>> $paths */
+            $paths = $openapi['paths'];
+            $paths[$normalizedPath][$method] = $operation;
+            $openapi['paths'] = $paths;
         }
 
         return $openapi;
@@ -83,14 +86,15 @@ class OpenApi
     }
 
     /**
-     * @param array<string> $handler
+     * @param array<mixed> $handler
      * @param array<string, mixed> $operation
      * @param array<string, mixed> $openapi
      */
     private function analyzeArrayHandler(array $handler, array &$operation, array &$openapi): void
     {
-        [$class, $method] = $handler;
-        if (!class_exists($class)) return;
+        $class = is_string($handler[0]) ? $handler[0] : '';
+        $method = is_string($handler[1]) ? $handler[1] : '';
+        if (!class_exists($class) || !method_exists($class, $method)) return;
 
         $reflection = new ReflectionMethod($class, $method);
         
@@ -119,8 +123,11 @@ class OpenApi
     private function addSchema(string $dtoClass, array &$openapi): void
     {
         $name = $this->getClassName($dtoClass);
-        if (isset($openapi['components']['schemas'][$name])) return;
-
+        $components = is_array($openapi['components'] ?? null) ? $openapi['components'] : [];
+        $schemas = is_array($components['schemas'] ?? null) ? $components['schemas'] : [];
+        if (isset($schemas[$name])) return;
+        
+        /** @var class-string $dtoClass */
         $reflection = new ReflectionClass($dtoClass);
         $properties = $reflection->getProperties(\ReflectionProperty::IS_PUBLIC);
         
@@ -138,6 +145,7 @@ class OpenApi
 
             $propSchema = $this->mapType($typeName);
             if ($isNullable) {
+                /** @var array<string, mixed> $propSchema */
                 $propSchema['nullable'] = true;
             }
 
@@ -151,7 +159,11 @@ class OpenApi
 
         if (empty($schema['required'])) unset($schema['required']);
 
-        $openapi['components']['schemas'][$name] = $schema;
+        $components = is_array($openapi['components']) ? $openapi['components'] : [];
+        $schemas = isset($components['schemas']) && is_array($components['schemas']) ? $components['schemas'] : [];
+        $schemas[$name] = $schema;
+        $components['schemas'] = $schemas;
+        $openapi['components'] = $components;
     }
 
     private function getClassName(string $fullClass): string

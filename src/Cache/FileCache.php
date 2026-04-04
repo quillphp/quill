@@ -32,6 +32,10 @@ class FileCache implements CacheInterface
         if (!$content) return $default;
 
         $data = unserialize($content);
+        if (!is_array($data) || !isset($data['e'], $data['v'])) {
+             return $default;
+        }
+
         if ($data['e'] > 0 && time() > $data['e']) {
             $this->delete($key);
             return $default;
@@ -59,6 +63,7 @@ class FileCache implements CacheInterface
     public function clear(): bool
     {
         $files = glob($this->directory . '*');
+        if ($files === false) return true;
         foreach ($files as $file) {
             if (is_file($file)) unlink($file);
         }

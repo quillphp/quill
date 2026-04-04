@@ -17,6 +17,7 @@ class MockOpenApiDTO extends DTO
 
 class MockOpenApiHandler
 {
+    /** @return array<string, mixed> */
     public function store(MockOpenApiDTO $dto): array
     {
         return ['ok' => true];
@@ -25,7 +26,7 @@ class MockOpenApiHandler
 
 class OpenApiTest extends TestCase
 {
-    public function testGenerateSchema()
+    public function testGenerateSchema(): void
     {
         $app = new App(['docs' => true]);
         $app->post('/users', [MockOpenApiHandler::class, 'store']);
@@ -34,14 +35,24 @@ class OpenApiTest extends TestCase
         $schema = $gen->generate($app->getHandlers());
 
         $this->assertEquals('3.1.0', $schema['openapi']);
-        $this->assertArrayHasKey('/users', $schema['paths']);
-        $this->assertArrayHasKey('post', $schema['paths']['/users']);
+        $paths = is_array($schema['paths']) ? $schema['paths'] : [];
+        $this->assertArrayHasKey('/users', $paths);
         
-        $this->assertArrayHasKey('MockOpenApiDTO', $schema['components']['schemas']);
-        $properties = $schema['components']['schemas']['MockOpenApiDTO']['properties'];
+        $userPath = is_array($paths['/users']) ? $paths['/users'] : [];
+        $this->assertArrayHasKey('post', $userPath);
         
-        $this->assertEquals('string', $properties['name']['type']);
-        $this->assertEquals('integer', $properties['age']['type']);
-        $this->assertEquals(true, $properties['age']['nullable']);
+        $components = is_array($schema['components']) ? $schema['components'] : [];
+        $schemas = is_array($components['schemas']) ? $components['schemas'] : [];
+        $this->assertArrayHasKey('MockOpenApiDTO', $schemas);
+        
+        $dtoSchema = is_array($schemas['MockOpenApiDTO']) ? $schemas['MockOpenApiDTO'] : [];
+        $properties = is_array($dtoSchema['properties']) ? $dtoSchema['properties'] : [];
+        
+        $nameProp = is_array($properties['name']) ? $properties['name'] : [];
+        $ageProp = is_array($properties['age']) ? $properties['age'] : [];
+
+        $this->assertEquals('string', $nameProp['type']);
+        $this->assertEquals('integer', $ageProp['type']);
+        $this->assertEquals(true, $ageProp['nullable']);
     }
 }

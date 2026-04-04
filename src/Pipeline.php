@@ -11,14 +11,14 @@ namespace Quill;
  */
 class Pipeline
 {
-    /** @var array<callable(Request, callable): mixed> */
+    /** @var array<mixed> */
     private array $middlewares = [];
     private ?ContainerInterface $container = null;
 
     /**
      * Add middleware to the stack.
      *
-     * @param array<callable(Request, callable): mixed> $middlewares
+     * @param array<callable|class-string> $middlewares
      */
     public function send(array $middlewares): self
     {
@@ -41,19 +41,24 @@ class Pipeline
             return $destination($request);
         }
 
+        /** @var callable(Request): mixed $pipeline */
         $pipeline = array_reduce(
             array_reverse($this->middlewares),
-            function ($next, $middleware) {
-                return function ($request) use ($next, $middleware) {
+            function (callable $next, $middleware) {
+                return function (Request $request) use ($next, $middleware) {
                     if (is_string($middleware) && $this->container?->has($middleware)) {
                         $middleware = $this->container->get($middleware);
                     }
-                    
+
                     if (is_object($middleware) && method_exists($middleware, 'handle')) {
                         return $middleware->handle($request, $next);
                     }
 
-                    return $middleware($request, $next);
+                    if (is_callable($middleware)) {
+                        return $middleware($request, $next);
+                    }
+
+                    throw new \RuntimeException('Invalid middleware.');
                 };
             },
             $destination

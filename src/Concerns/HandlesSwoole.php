@@ -92,7 +92,11 @@ trait HandlesSwoole
 
         try {
             if (empty($this->middlewares)) {
-                $route = $this->router->dispatch($dispatchMethod, $phpReq->path());
+                $router = $this->router;
+                if ($router === null) {
+                    throw new \RuntimeException('Router not initialized.');
+                }
+                $route = $router->dispatch($dispatchMethod, $phpReq->path());
 
                 if (!$route->isFound()) {
                     if ($route->isMethodNotAllowed() && $method === 'OPTIONS') {
@@ -124,7 +128,11 @@ trait HandlesSwoole
             } else {
                 $dispatch = function (Request $req) use ($method): mixed {
                     $dispatchMethod = ($method === 'HEAD') ? 'GET' : $method;
-                    $route = $this->router->dispatch($dispatchMethod, $req->path());
+                    $router = $this->router;
+                    if ($router === null) {
+                        throw new \RuntimeException('Router not initialized.');
+                    }
+                    $route = $router->dispatch($dispatchMethod, $req->path());
 
                     if ($route->isFound()) {
                         return $route->execute($req);

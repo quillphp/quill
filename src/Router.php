@@ -61,8 +61,8 @@ class Router
         // Cache miss or disabled: Build the param cache via reflection.
         foreach ($this->routes as [$method, $path, $handler]) {
             if (is_array($handler) && count($handler) === 2) {
-                $class = (string)$handler[0];
-                $methodName = (string)$handler[1];
+                $class = is_string($handler[0] ?? null) ? (string)$handler[0] : '';
+                $methodName = is_string($handler[1] ?? null) ? (string)$handler[1] : '';
                 $key = "$class::$methodName";
                 if (!isset($this->paramCache[$key])) {
                     $reflection = new \ReflectionMethod($class, $methodName);
@@ -74,6 +74,7 @@ class Router
                         if ($typeName && !$type->isBuiltin()) {
                             if (is_subclass_of($typeName, DTO::class)) {
                                 $isDTO = true;
+                                /** @var class-string<DTO> $typeName */
                                 Validator::register($typeName);
                             }
                         }
@@ -105,6 +106,7 @@ class Router
                             $isDTO = is_subclass_of($typeName, DTO::class);
                             $isReq = ($typeName === Request::class);
                             if ($isDTO) {
+                                /** @var class-string $typeName */
                                 Validator::register($typeName);
                             }
                         }
@@ -148,6 +150,11 @@ class Router
             $this->compile();
         }
 
+        if ($this->dispatcher === null) {
+            throw new \RuntimeException('Dispatcher failed to compile.');
+        }
+
+        /** @var array{0: int, 1?: callable|array<string>, 2?: array<string, string>} $info */
         $info = $this->dispatcher->dispatch($method, $uri);
 
         return new RouteMatch($info, $this->paramCache, $this->instanceCache, $this->container);

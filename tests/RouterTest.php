@@ -10,7 +10,7 @@ use Quill\Request;
 
 class UserController
 {
-    public function show(int $id)
+    public function show(int $id): string
     {
         return "User ID: $id";
     }
@@ -18,7 +18,7 @@ class UserController
 
 class RouterTest extends TestCase
 {
-    public function testRouteRegistrationAndDispatch()
+    public function testRouteRegistrationAndDispatch(): void
     {
         $router = new Router();
         $router->addRoute('GET', '/users/{id}', [UserController::class, 'show']);
@@ -28,7 +28,7 @@ class RouterTest extends TestCase
         $this->assertFalse($match->isNotFound());
     }
 
-    public function testRouteExecuteWithParamInjection()
+    public function testRouteExecuteWithParamInjection(): void
     {
         $router = new Router();
         $router->addRoute('GET', '/user/{id}', [UserController::class, 'show']);
@@ -40,19 +40,19 @@ class RouterTest extends TestCase
         $this->assertEquals('User ID: 456', $result);
     }
 
-    public function testMethodNotAllowed()
+    public function testMethodNotAllowed(): void
     {
         $router = new Router();
-        $router->addRoute('POST', '/login', function() { return 'ok'; });
+        $router->addRoute('POST', '/login', function(): string { return 'ok'; });
 
         $match = $router->dispatch('GET', '/login');
         $this->assertTrue($match->isMethodNotAllowed());
     }
 
-    public function testClosureHandlerReceivesInjectedPathParam()
+    public function testClosureHandlerReceivesInjectedPathParam(): void
     {
         $router = new Router();
-        $router->addRoute('GET', '/items/{id}', function (int $id) {
+        $router->addRoute('GET', '/items/{id}', function (int $id): string {
             return "Item: $id";
         });
 
@@ -61,10 +61,10 @@ class RouterTest extends TestCase
         $this->assertEquals('Item: 789', $result);
     }
 
-    public function testClosureHandlerReceivesRequest()
+    public function testClosureHandlerReceivesRequest(): void
     {
         $router = new Router();
-        $router->addRoute('GET', '/ping', function (Request $req) {
+        $router->addRoute('GET', '/ping', function (Request $req): string {
             return 'pong';
         });
 

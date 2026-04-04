@@ -13,7 +13,7 @@ use Psr\Container\ContainerInterface;
 class RouteMatch
 {
     private int $status;
-    /** @var callable|array<string>|null */
+    /** @var callable|array<mixed>|null */
     private mixed $handler;
     /** @var array<string, string> */
     private array $vars;
@@ -75,7 +75,8 @@ class RouteMatch
         $request->setPathVars($this->vars);
 
         if (is_array($this->handler) && count($this->handler) === 2) {
-            [$class, $method] = $this->handler;
+            $class = is_string($this->handler[0]) ? $this->handler[0] : '';
+            $method = is_string($this->handler[1]) ? $this->handler[1] : '';
             $key = "$class::$method";
 
             // Array handlers: use boot-time cached param map — zero reflection per request.
@@ -85,11 +86,16 @@ class RouteMatch
             $args = $paramMap ? $this->resolveArgs($paramMap, $request) : [];
 
             if (!isset($this->instanceCache[$class])) {
-                $this->instanceCache[$class] = $this->container?->has($class)
+                $resolved = $this->container?->has($class)
                     ? $this->container->get($class)
                     : new $class();
+                if (!is_object($resolved)) {
+                    throw new \RuntimeException("Could not resolve handler class: $class");
+                }
+                $this->instanceCache[$class] = $resolved;
             }
-            return $this->instanceCache[$class]->$method(...$args);
+            $instance = $this->instanceCache[$class];
+            return $instance->$method(...$args);
         }
 
         if (is_callable($this->handler)) {
@@ -97,15 +103,16 @@ class RouteMatch
             $handler = $this->handler;
             if (is_object($handler)) {
                 $key = 'closure_' . spl_object_id($handler);
-            } elseif (is_array($handler)) {
+            } elseif (is_array($handler) && isset($handler[0], $handler[1])) {
                 $owner = $handler[0];
-                $ownerId = is_object($owner) ? (string)spl_object_id($owner) : (string)$owner;
-                $key = 'method_' . $ownerId . '_' . (string)$handler[1];
+                $ownerId = is_object($owner) ? (string)spl_object_id($owner) : (is_scalar($owner) ? (string)$owner : 'unknown');
+                $methodName = is_scalar($handler[1]) ? (string)$handler[1] : 'unknown';
+                $key = 'method_' . $ownerId . '_' . $methodName;
             } elseif (is_string($handler)) {
                 $key = 'func_' . $handler;
             } else {
-                // Fallback for any other callable type (unlikely here but satisfies analyzer)
-                $key = 'other_' . md5(serialize($handler));
+                // Fallback for any other callable type
+                $key = 'other_hash';
             }
 
             // Fast path: zero-arg handler — skip resolveArgs entirely.

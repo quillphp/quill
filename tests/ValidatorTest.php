@@ -54,7 +54,7 @@ class ValidatorTest extends TestCase
         $this->assertEquals(30, $dto->age);
     }
 
-    public function testDefaultValueUsage()
+    public function testDefaultValueUsage(): void
     {
         $data = ['name' => 'Jane'];
         $dto = Validator::validate(MockUserDTO::class, $data);
@@ -62,13 +62,13 @@ class ValidatorTest extends TestCase
         $this->assertEquals(25, $dto->age);
     }
 
-    public function testValidationFailsOnMissingRequiredField()
+    public function testValidationFailsOnMissingRequiredField(): void
     {
         $this->expectException(ValidationException::class);
         Validator::validate(MockUserDTO::class, ['age' => 45]);
     }
 
-    public function testValidationExceptionContainsFieldErrors()
+    public function testValidationExceptionContainsFieldErrors(): void
     {
         try {
             Validator::validate(MockUserDTO::class, ['age' => 45]);
@@ -78,19 +78,19 @@ class ValidatorTest extends TestCase
         }
     }
 
-    public function testEmailAttributeRejectsInvalidEmail()
+    public function testEmailAttributeRejectsInvalidEmail(): void
     {
         $this->expectException(ValidationException::class);
         Validator::validate(MockEmailDTO::class, ['contact' => 'not-an-email']);
     }
 
-    public function testMinLengthAttributeRejectsShortString()
+    public function testMinLengthAttributeRejectsShortString(): void
     {
         $this->expectException(ValidationException::class);
         Validator::validate(MockMinDTO::class, ['tag' => 'ab']);
     }
 
-    public function testAdvancedRulesPass()
+    public function testAdvancedRulesPass(): void
     {
         $data = [
             'serial' => 'K-123',
@@ -105,19 +105,19 @@ class ValidatorTest extends TestCase
         $this->assertNull($dto->description);
     }
 
-    public function testRegexRejectsInvalidPattern()
+    public function testRegexRejectsInvalidPattern(): void
     {
         $this->expectException(ValidationException::class);
         Validator::validate(MockAdvancedDTO::class, ['serial' => 'ABC-123']);
     }
 
-    public function testNumericRejectsNonNumeric()
+    public function testNumericRejectsNonNumeric(): void
     {
         $this->expectException(ValidationException::class);
         Validator::validate(MockAdvancedDTO::class, ['price' => 'free']);
     }
 
-    public function testNullableAllowsMissingField()
+    public function testNullableAllowsMissingField(): void
     {
         $data = [
             'serial' => 'K-1',

@@ -16,7 +16,7 @@ class App
     use Concerns\HandlesExceptions;
     use Concerns\HandlesResponses;
 
-    /** @var array<callable(Request, callable): mixed> */
+    /** @var array<callable|class-string> */
     private array $middlewares = [];
     private ?Router $router = null;
     private Pipeline $pipeline;
@@ -56,11 +56,17 @@ class App
             } elseif (is_string($this->config['logger'])) {
                 $this->logger = new Logger(
                     $this->config['logger'],
-                    (int)$this->config['log_level'],
+                    is_int($this->config['log_level']) ? (int)$this->config['log_level'] : 0,
                     $this->config['log_format'] === 'json'
                 );
             }
         }
+
+        // Initialize core components
+        $cacheConfig = $this->config['route_cache'] ?? sys_get_temp_dir() . '/quill_routes.cache';
+        $cacheFile   = is_string($cacheConfig) ? $cacheConfig : null;
+        $this->router = new Router(cacheFile: $cacheFile);
+        $this->pipeline = new Pipeline();
     }
 
     /**
@@ -133,26 +139,18 @@ class App
             return;
         }
 
-        // route_cache: false = disabled (worker mode / testing),
-        //              string = custom path,
-        //              not set = default temp-dir path (FPM mode).
-        $cacheConfig = $this->config['route_cache'] ?? sys_get_temp_dir() . '/quill_routes.cache';
-        $cacheFile   = ($cacheConfig === false) ? null : (string)$cacheConfig;
-
-        $this->router = new Router(cacheFile: $cacheFile);
-        if ($this->container) {
+        if ($this->container && $this->router !== null) {
             $this->router->setContainer($this->container);
-        }
-        $this->pipeline = new Pipeline();
-        if ($this->container) {
             $this->pipeline->setContainer($this->container);
         }
  
         foreach ($this->handlers as [$method, $path, $handler]) {
-            $this->router->addRoute($method, $path, $handler);
+            if ($this->router !== null) {
+                $this->router->addRoute($method, $path, $handler);
+            }
         }
 
-        if ($this->config['docs'] ?? false) {
+        if (($this->config['docs'] ?? false) && $this->router !== null) {
             $this->router->addRoute('GET', '/docs/openapi.json', function() {
                 return (new OpenApi())->generate($this->handlers);
             });
@@ -165,11 +163,14 @@ class App
                 if (!file_exists($file)) {
                     return new HttpResponse(['error' => 'Docs UI not found at ' . $file], 404);
                 }
-                return new HtmlResponse(file_get_contents($file));
+                $content = file_get_contents($file);
+                return new HtmlResponse(is_string($content) ? $content : '');
             });
         }
  
-        $this->router->compile();
+        if ($this->router !== null) {
+            $this->router->compile();
+        }
         $this->booted = true;
     }
 
@@ -199,7 +200,9 @@ class App
                 // ── Zero-allocation fast path: no closure, no Pipeline call ──────
                 $method         = $request->method();
                 $dispatchMethod = ($method === 'HEAD') ? 'GET' : $method;
-                $route          = $this->router->dispatch($dispatchMethod, $request->path());
+                $router         = $this->router;
+                if ($router === null) { throw new \RuntimeException('Router not initialized.'); }
+                $route          = $router->dispatch($dispatchMethod, $request->path());
 
                 if ($route->isFound()) {
                     if ($method === 'HEAD') {
@@ -224,7 +227,9 @@ class App
                 $dispatch = function ($req) use ($response, &$status): mixed {
                     $method         = $req->method();
                     $dispatchMethod = ($method === 'HEAD') ? 'GET' : $method;
-                    $route          = $this->router->dispatch($dispatchMethod, $req->path());
+                    $router         = $this->router;
+                    if ($router === null) { throw new \RuntimeException('Router not initialized.'); }
+                    $route          = $router->dispatch($dispatchMethod, $req->path());
 
                     if ($route->isFound()) {
                         if ($method === 'HEAD') {
@@ -261,7 +266,7 @@ class App
         }
 
         // Access log — zero overhead when logger is null.
-        if ($hasLogger) {
+        if ($hasLogger && $this->logger !== null) {
             $this->logger->access(
                 ip:         $request->ip(),
                 method:     $request->method(),

@@ -41,9 +41,9 @@ class Benchmark
         $reqHello = (new Request())->withMethod('GET')->withPath('/hello');
         $reqUser  = (new Request())->withMethod('GET')->withPath('/users/42');
         $reqEcho  = (new Request())->withMethod('POST')->withPath('/echo')
-            ->withInput(json_encode(['email' => 'bench@quill.dev', 'name' => 'Quill', 'role' => 'admin']));
+            ->withInput((string)json_encode(['email' => 'bench@quill.dev', 'name' => 'Quill', 'role' => 'admin']));
         $reqDto   = (new Request())->withMethod('POST')->withPath('/users')
-            ->withInput(json_encode(['email' => 'bench@quill.dev', 'name' => 'Quill', 'role' => 'admin']));
+            ->withInput((string)json_encode(['email' => 'bench@quill.dev', 'name' => 'Quill', 'role' => 'admin']));
 
         $this->bench('GET /hello    (BenchHandler::hello)', $iterations, function () use ($reqHello) {
             ob_start();

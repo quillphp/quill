@@ -28,7 +28,8 @@ class Request
 
     public function method(): string
     {
-        return $this->methodOverride ?? $_SERVER['REQUEST_METHOD'] ?? 'GET';
+        $m = $this->methodOverride ?? $_SERVER['REQUEST_METHOD'] ?? 'GET';
+        return is_string($m) ? $m : 'GET';
     }
 
     public function set(string $key, mixed $value): void
@@ -53,16 +54,20 @@ class Request
     public function ip(): string
     {
         if ($this->swooleHeaders !== null) {
-            if (!empty($this->swooleHeaders['x-forwarded-for'])) {
-                return trim(explode(',', $this->swooleHeaders['x-forwarded-for'])[0]);
+            $val = $this->swooleHeaders['x-forwarded-for'];
+            if (!empty($val)) {
+                return trim(explode(',', (string)$val)[0]);
             }
-            return $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+            $remote = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+            return is_string($remote) ? $remote : '127.0.0.1';
         }
         if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-            // X-Forwarded-For can be a comma-separated list; take the first entry.
-            return trim(explode(',', $_SERVER['HTTP_X_FORWARDED_FOR'])[0]);
+            $xff = $_SERVER['HTTP_X_FORWARDED_FOR'];
+            $xffString = is_string($xff) ? $xff : '';
+            return trim(explode(',', $xffString)[0]);
         }
-        return $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+        $remote = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+        return is_string($remote) ? $remote : '127.0.0.1';
     }
 
     /**
@@ -79,7 +84,8 @@ class Request
         }
         // PHP exposes headers as HTTP_<UPPERCASE_NAME_WITH_UNDERSCORES>
         $key = 'HTTP_' . strtoupper(str_replace('-', '_', $name));
-        return $_SERVER[$key] ?? $default;
+        $value = $_SERVER[$key] ?? $default;
+        return is_string($value) ? $value : $default;
     }
 
     /**
@@ -87,7 +93,8 @@ class Request
      */
     public function protocol(): string
     {
-        return $_SERVER['SERVER_PROTOCOL'] ?? 'HTTP/1.1';
+        $proto = $_SERVER['SERVER_PROTOCOL'] ?? 'HTTP/1.1';
+        return is_string($proto) ? $proto : 'HTTP/1.1';
     }
 
     public function path(): string
@@ -96,7 +103,8 @@ class Request
             return $this->pathOverride;
         }
 
-        $uri = $_SERVER['REQUEST_URI'] ?? '/';
+        $uriRaw = $_SERVER['REQUEST_URI'] ?? '/';
+        $uri = is_string($uriRaw) ? $uriRaw : '/';
         if (false !== $pos = strpos($uri, '?')) {
             $uri = substr($uri, 0, $pos);
         }
@@ -195,6 +203,11 @@ class Request
             throw new \InvalidArgumentException('Invalid JSON body.');
         }
 
+        if (!is_array($decoded)) {
+            throw new \InvalidArgumentException('JSON body must be an object or array.');
+        }
+
+        /** @var array<string, mixed> $decoded */
         return $this->jsonBody = $decoded;
     }
 }

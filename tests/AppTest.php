@@ -13,6 +13,7 @@ class AppTest extends TestCase
 {
     /**
      * Boot a fresh App with caching disabled (safe for isolated tests).
+     * @param array<string, mixed> $config
      */
     private function makeApp(array $config = []): App
     {
@@ -21,20 +22,22 @@ class AppTest extends TestCase
 
     /**
      * Run App::handle() and capture the JSON output and status code.
-     * @return array{body: array, status: int}
+     * @return array{body: array<string, mixed>, status: int}
      */
     private function runHandle(App $app, ?Request $request = null): array
     {
         ob_start();
         $app->handle($request);
-        $output = ob_get_clean();
+        $output = (string) ob_get_clean();
+        
+        $decoded = json_decode($output, true);
         return [
-            'body' => json_decode($output ?: '{}', true) ?? [],
-            'status' => http_response_code()
+            'body'   => is_array($decoded) ? $decoded : [],
+            'status' => (int) http_response_code()
         ];
     }
 
-    public function testHandleReturns404ForUnknownRoute()
+    public function testHandleReturns404ForUnknownRoute(): void
     {
         $_SERVER['REQUEST_METHOD'] = 'GET';
         $_SERVER['REQUEST_URI']    = '/nonexistent';
@@ -46,7 +49,7 @@ class AppTest extends TestCase
         $this->assertEquals(404, $res['status']);
     }
 
-    public function testHandleReturns405ForWrongMethod()
+    public function testHandleReturns405ForWrongMethod(): void
     {
         $_SERVER['REQUEST_METHOD'] = 'DELETE';
         $_SERVER['REQUEST_URI']    = '/users';
@@ -58,7 +61,7 @@ class AppTest extends TestCase
         $this->assertEquals(405, $res['status']);
     }
 
-    public function testHandleReturns422WithFieldErrorsForInvalidDto()
+    public function testHandleReturns422WithFieldErrorsForInvalidDto(): void
     {
         $_SERVER['REQUEST_METHOD'] = 'GET';
         $_SERVER['REQUEST_URI']    = '/validate';
@@ -73,7 +76,7 @@ class AppTest extends TestCase
         $this->assertArrayHasKey('errors', $res['body']);
     }
 
-    public function testHandleReturns400ForBadJson()
+    public function testHandleReturns400ForBadJson(): void
     {
         $_SERVER['REQUEST_METHOD'] = 'POST';
         $_SERVER['REQUEST_URI']    = '/echo';
@@ -88,7 +91,7 @@ class AppTest extends TestCase
         $this->assertEquals(400, $res['status']);
     }
 
-    public function testHandleReturns500ForUnhandledError()
+    public function testHandleReturns500ForUnhandledError(): void
     {
         $_SERVER['REQUEST_METHOD'] = 'GET';
         $_SERVER['REQUEST_URI']    = '/boom';
@@ -102,7 +105,7 @@ class AppTest extends TestCase
         $this->assertEquals(500, $res['status']);
     }
 
-    public function testPatchRouteIsDispatchedCorrectly()
+    public function testPatchRouteIsDispatchedCorrectly(): void
     {
         $_SERVER['REQUEST_METHOD'] = 'PATCH';
         $_SERVER['REQUEST_URI']    = '/update';
@@ -115,7 +118,7 @@ class AppTest extends TestCase
         $this->assertEquals(200, $res['status']);
     }
 
-    public function testHandleSupportsHttpResponseObject()
+    public function testHandleSupportsHttpResponseObject(): void
     {
         $_SERVER['REQUEST_METHOD'] = 'POST';
         $_SERVER['REQUEST_URI']    = '/users';
@@ -130,7 +133,7 @@ class AppTest extends TestCase
         $this->assertEquals(1, $res['body']['id']);
     }
 
-    public function testNoContentResponseHasZeroBody()
+    public function testNoContentResponseHasZeroBody(): void
     {
         $_SERVER['REQUEST_METHOD'] = 'DELETE';
         $_SERVER['REQUEST_URI']    = '/users/1';
@@ -146,7 +149,7 @@ class AppTest extends TestCase
         $this->assertEquals('', $output);
     }
 
-    public function testMapRegistersMultipleMethods()
+    public function testMapRegistersMultipleMethods(): void
     {
         $app = $this->makeApp();
         $app->map(['GET', 'POST'], '/map-test', fn() => 'ok');
@@ -157,7 +160,7 @@ class AppTest extends TestCase
         $this->assertEquals('POST', $handlers[1][0]);
     }
 
-    public function testRouteGroupsPrependPrefix()
+    public function testRouteGroupsPrependPrefix(): void
     {
         $app = $this->makeApp();
         $app->group('/api', function ($app) {
@@ -168,7 +171,7 @@ class AppTest extends TestCase
         $this->assertEquals('/api/users', $handlers[0][1]);
     }
 
-    public function testNestedRouteGroups()
+    public function testNestedRouteGroups(): void
     {
         $app = $this->makeApp();
         $app->group('/api', function ($app) {
@@ -181,7 +184,7 @@ class AppTest extends TestCase
         $this->assertEquals('/api/v1/users', $handlers[0][1]);
     }
 
-    public function testResourceRegistersStandardCruds()
+    public function testResourceRegistersStandardCruds(): void
     {
         $app = $this->makeApp();
         $app->resource('/users', 'Handlers\UserHandler');

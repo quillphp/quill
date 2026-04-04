@@ -43,7 +43,14 @@ class Cors
 
     /**
      * Static factory for backward compatibility and quick usage.
-     * @param array<string, mixed> $options
+     * @param array{
+     *   origins?: array<string>,
+     *   methods?: array<string>,
+     *   headers?: array<string>,
+     *   exposed_headers?: array<string>,
+     *   max_age?: int,
+     *   credentials?: bool
+     * } $options
      * @return callable(Request, callable): mixed
      */
     public static function middleware(array $options = []): callable
