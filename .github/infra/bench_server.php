@@ -34,7 +34,7 @@ if (file_exists(__DIR__ . '/../../vendor/autoload.php')) {
     require __DIR__ . '/../../vendor/autoload.php';
 }
 
-use Handlers\BenchHandler;
+use Handlers\Bench\BenchHandler;
 use Quill\App;
 
 $app = new App([

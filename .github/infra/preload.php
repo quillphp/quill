@@ -91,7 +91,7 @@ foreach ($fastRouteFiles as $rel) {
 }
 
 // ── Benchmark handlers (only present in benchmark images) ────────────────────
-$benchHandler = __DIR__ . '/../../handlers/BenchHandler.php';
+$benchHandler = __DIR__ . '/../../handlers/Bench/BenchHandler.php';
 if (file_exists($benchHandler)) {
     opcache_compile_file($benchHandler);
 }
