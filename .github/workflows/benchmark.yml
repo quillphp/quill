@@ -98,11 +98,11 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: vendor
-          key: composer-bench-${{ hashFiles('composer.lock') }}
+          key: composer-bench-${{ hashFiles('composer.json') }}
           restore-keys: composer-bench-
 
       - name: Install dependencies
-        run: composer install --no-dev --optimize-autoloader --classmap-authoritative --no-interaction --no-progress
+        run: composer update --no-dev --optimize-autoloader --classmap-authoritative --no-interaction --no-progress
 
       - name: Run in-process benchmark
         run: |
@@ -157,11 +157,11 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: vendor
-          key: composer-swoole-${{ hashFiles('composer.lock') }}
+          key: composer-swoole-${{ hashFiles('composer.json') }}
           restore-keys: composer-swoole-
 
       - name: Install dependencies (classmap-authoritative, no dev)
-        run: composer install --no-dev --optimize-autoloader --classmap-authoritative --no-interaction --no-progress
+        run: composer update --no-dev --optimize-autoloader --classmap-authoritative --no-interaction --no-progress
 
       # wrk is the HTTP benchmark tool. It may or may not be in apt on the
       # runner's Ubuntu version — we build from source as a reliable fallback.
@@ -361,11 +361,11 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: vendor
-          key: composer-bench-${{ hashFiles('composer.lock') }}
+          key: composer-bench-${{ hashFiles('composer.json') }}
           restore-keys: composer-bench-
 
       - name: Install dependencies
-        run: composer install --no-dev --optimize-autoloader --classmap-authoritative --no-interaction --no-progress
+        run: composer update --no-dev --optimize-autoloader --classmap-authoritative --no-interaction --no-progress
 
       - name: Install wrk
         run: |

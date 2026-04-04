@@ -41,11 +41,11 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: vendor
-          key: composer-${{ matrix.php }}-${{ hashFiles('composer.lock') }}
+          key: composer-${{ matrix.php }}-${{ hashFiles('composer.json') }}
           restore-keys: composer-${{ matrix.php }}-
 
       - name: Install dependencies
-        run: composer install --prefer-dist --no-progress --no-interaction
+        run: composer update --prefer-dist --no-progress --no-interaction
 
       - name: Run Tests (Pest)
         run: vendor/bin/pest --no-coverage
@@ -66,11 +66,11 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: vendor
-          key: composer-8.3-${{ hashFiles('composer.lock') }}
+          key: composer-8.3-${{ hashFiles('composer.json') }}
           restore-keys: composer-8.3-
 
       - name: Install dependencies
-        run: composer install --prefer-dist --no-progress --no-interaction
+        run: composer update --prefer-dist --no-progress --no-interaction
 
       - name: Run PHPStan
         run: vendor/bin/phpstan analyse --no-progress
