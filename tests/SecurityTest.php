@@ -63,7 +63,7 @@ class SecurityTest extends TestCase
         
         ob_start(); $app->handle(); ob_get_clean();
         
-        $this->assertTrue(true); // Verification that it runs without crash
+        $this->assertEquals(200, http_response_code());
     }
 
     public function testSecurityHeaders(): void

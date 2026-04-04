@@ -95,9 +95,18 @@ class RouteMatch
         if (is_callable($this->handler)) {
             // Closure handlers: use boot-time cached param map keyed by object id — zero reflection per request.
             $handler = $this->handler;
-            $key = is_object($handler) 
-                ? 'closure_' . spl_object_id($handler)
-                : 'func_' . (string)$handler;
+            if (is_object($handler)) {
+                $key = 'closure_' . spl_object_id($handler);
+            } elseif (is_array($handler)) {
+                $owner = $handler[0];
+                $ownerId = is_object($owner) ? (string)spl_object_id($owner) : (string)$owner;
+                $key = 'method_' . $ownerId . '_' . (string)$handler[1];
+            } elseif (is_string($handler)) {
+                $key = 'func_' . $handler;
+            } else {
+                // Fallback for any other callable type (unlikely here but satisfies analyzer)
+                $key = 'other_' . md5(serialize($handler));
+            }
 
             // Fast path: zero-arg handler — skip resolveArgs entirely.
             if (isset($this->paramCache[$key])) {

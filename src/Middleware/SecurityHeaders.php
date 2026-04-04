@@ -13,6 +13,7 @@ use Quill\HttpResponse;
  */
 class SecurityHeaders
 {
+    /** @var array<string, string> */
     private array $headers;
 
     /**

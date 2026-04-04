@@ -42,6 +42,6 @@ class OpenApiTest extends TestCase
         
         $this->assertEquals('string', $properties['name']['type']);
         $this->assertEquals('integer', $properties['age']['type']);
-        $this->assertTrue($properties['age']['nullable']);
+        $this->assertEquals(true, $properties['age']['nullable']);
     }
 }

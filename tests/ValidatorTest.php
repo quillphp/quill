@@ -44,13 +44,7 @@ class MockAdvancedDTO extends DTO
 
 class ValidatorTest extends TestCase
 {
-    public function testMockDtoReflection()
-    {
-        Validator::register(MockUserDTO::class);
-        $this->assertTrue(true);
-    }
-
-    public function testValidDtoHydration()
+    public function testValidDtoHydration(): void
     {
         $data = ['name' => 'John', 'age' => 30];
         $dto = Validator::validate(MockUserDTO::class, $data);

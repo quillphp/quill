@@ -10,9 +10,13 @@ namespace Quill;
  */
 class Cors
 {
+    /** @var array<string> */
     private array $origins;
+    /** @var array<string> */
     private array $methods;
+    /** @var array<string> */
     private array $headers;
+    /** @var array<string> */
     private array $exposedHeaders;
     private int $maxAge;
     private bool $credentials;
@@ -39,6 +43,8 @@ class Cors
 
     /**
      * Static factory for backward compatibility and quick usage.
+     * @param array<string, mixed> $options
+     * @return callable(Request, callable): mixed
      */
     public static function middleware(array $options = []): callable
     {

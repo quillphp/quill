@@ -62,7 +62,10 @@ class Validator
      * Validate and hydrate a DTO from an array.
      * ZERO reflection during request.
      *
+     * @template T of DTO
+     * @param class-string<T> $dtoClass
      * @param array<string, mixed> $data
+     * @return T
      */
     public static function validate(string $dtoClass, array $data): DTO
     {
@@ -72,6 +75,7 @@ class Validator
 
         /** @var array<string, array{type: string, rules: array<object>, hasDefault: bool, defaultValue: mixed, isNullable: bool}> $map */
         $map = self::$cache[$dtoClass];
+        /** @var T $dto */
         $dto = new $dtoClass();
         $errors = [];
 
