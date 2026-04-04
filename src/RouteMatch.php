@@ -170,7 +170,9 @@ class RouteMatch
         foreach ($paramMap as $param) {
             $name = $param['name'];
             if ($param['isDTO'] && $param['type'] !== null) {
-                $args[] = Validator::validate($param['type'], $request->json());
+                /** @var class-string<DTO> $dtoClass */
+                $dtoClass = $param['type'];
+                $args[] = Validator::validate($dtoClass, $request->json());
                 continue;
             }
             if ($param['isRequest']) {
