@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Quill;
 
 use FastRoute\Dispatcher;
+use Psr\Container\ContainerInterface;
 
 /**
  * Encapsulates the result of a route dispatch.
@@ -20,6 +21,7 @@ class RouteMatch
     private array $paramCache;
     /** @var array<string, object> */
     private array $instanceCache;
+    private ?ContainerInterface $container;
 
     /**
      * @param array{0: int, 1?: callable|array<string>, 2?: array<string, string>} $info
@@ -29,13 +31,15 @@ class RouteMatch
     public function __construct(
         array $info,
         array $paramCache,
-        array &$instanceCache
+        array &$instanceCache,
+        ?ContainerInterface $container = null
     ) {
         $this->status        = $info[0];
         $this->handler       = $info[1] ?? null;
         $this->vars          = $info[2] ?? [];
         $this->paramCache    = $paramCache;
         $this->instanceCache = &$instanceCache;
+        $this->container     = $container;
     }
 
     public function isFound(): bool
@@ -81,14 +85,19 @@ class RouteMatch
             $args = $paramMap ? $this->resolveArgs($paramMap, $request) : [];
 
             if (!isset($this->instanceCache[$class])) {
-                $this->instanceCache[$class] = new $class();
+                $this->instanceCache[$class] = $this->container?->has($class)
+                    ? $this->container->get($class)
+                    : new $class();
             }
             return $this->instanceCache[$class]->$method(...$args);
         }
 
         if (is_callable($this->handler)) {
             // Closure handlers: use boot-time cached param map keyed by object id — zero reflection per request.
-            $key = 'closure_' . spl_object_id($this->handler);
+            $handler = $this->handler;
+            $key = is_object($handler) 
+                ? 'closure_' . spl_object_id($handler)
+                : 'func_' . (string)$handler;
 
             // Fast path: zero-arg handler — skip resolveArgs entirely.
             if (isset($this->paramCache[$key])) {
@@ -168,6 +177,13 @@ class RouteMatch
                 };
                 continue;
             }
+
+            // Fallback to Container for non-builtin types
+            if ($param['type'] !== null && !$param['isBuiltin'] && $this->container?->has($param['type'])) {
+                $args[] = $this->container->get($param['type']);
+                continue;
+            }
+
             $args[] = $param['hasDefault'] ? $param['defaultValue'] : null;
         }
         return $args;

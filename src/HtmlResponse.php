@@ -13,6 +13,12 @@ class HtmlResponse
         public readonly string $html,
         public readonly int $status = 200,
         /** @var array<string, string> */
-        public readonly array $headers = [],
+        public array $headers = [],
     ) {}
+
+    public function header(string $name, string $value): self
+    {
+        $this->headers[$name] = $value;
+        return $this;
+    }
 }

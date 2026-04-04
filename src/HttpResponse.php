@@ -17,8 +17,14 @@ class HttpResponse
     public function __construct(
         public readonly mixed $data,
         public readonly int $status = 200,
-        public readonly array $headers = [],
+        public array $headers = [],
     ) {}
+
+    public function header(string $name, string $value): self
+    {
+        $this->headers[$name] = $value;
+        return $this;
+    }
 
     public static function created(mixed $data): self
     {

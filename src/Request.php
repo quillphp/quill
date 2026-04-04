@@ -23,10 +23,27 @@ class Request
      * @var array<string, string>|null
      */
     private ?array $swooleHeaders = null;
+    /** @var array<string, mixed> */
+    private array $context = [];
 
     public function method(): string
     {
         return $this->methodOverride ?? $_SERVER['REQUEST_METHOD'] ?? 'GET';
+    }
+
+    public function set(string $key, mixed $value): void
+    {
+        $this->context[$key] = $value;
+    }
+
+    public function get(string $key, mixed $default = null): mixed
+    {
+        return $this->context[$key] ?? $default;
+    }
+
+    public function has(string $key): bool
+    {
+        return array_key_exists($key, $this->context);
     }
 
     /**

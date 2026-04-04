@@ -6,6 +6,7 @@ namespace Quill;
 
 use FastRoute\Dispatcher;
 use FastRoute\RouteCollector;
+use Psr\Container\ContainerInterface;
 use function FastRoute\cachedDispatcher;
 
 /**
@@ -21,10 +22,16 @@ class Router
     private array $paramCache = [];
     /** @var array<string, object> */
     private array $instanceCache = [];
+    private ?ContainerInterface $container = null;
 
     public function __construct(
         private ?string $cacheFile = null
     ) {
+    }
+
+    public function setContainer(ContainerInterface $container): void
+    {
+        $this->container = $container;
     }
 
     /**
@@ -143,7 +150,7 @@ class Router
 
         $info = $this->dispatcher->dispatch($method, $uri);
 
-        return new RouteMatch($info, $this->paramCache, $this->instanceCache);
+        return new RouteMatch($info, $this->paramCache, $this->instanceCache, $this->container);
     }
 
     /**

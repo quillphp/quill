@@ -5,47 +5,100 @@ declare(strict_types=1);
 namespace Quill;
 
 /**
- * Built-in CORS middleware factory for Quill.
- *
- * Usage:
- *   $app->use(Cors::middleware([
- *       'origins' => ['https://myapp.com'],
- *       'headers' => ['Content-Type', 'Authorization'],
- *   ]));
+ * Robust CORS middleware for Quill.
+ * Supports multiple origins, regex patterns, and preflight optimization.
  */
 class Cors
 {
+    private array $origins;
+    private array $methods;
+    private array $headers;
+    private array $exposedHeaders;
+    private int $maxAge;
+    private bool $credentials;
+
     /**
-     * @param array{origins?: array<string>, methods?: array<string>, headers?: array<string>, max_age?: int} $options
-     * @return callable(Request, callable): mixed
+     * @param array{
+     *   origins?: array<string>,
+     *   methods?: array<string>,
+     *   headers?: array<string>,
+     *   exposed_headers?: array<string>,
+     *   max_age?: int,
+     *   credentials?: bool
+     * } $options
+     */
+    public function __construct(array $options = [])
+    {
+        $this->origins        = $options['origins'] ?? ['*'];
+        $this->methods        = $options['methods'] ?? ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'];
+        $this->headers        = $options['headers'] ?? ['Content-Type', 'Authorization', 'X-Requested-With'];
+        $this->exposedHeaders = $options['exposed_headers'] ?? [];
+        $this->maxAge         = $options['max_age'] ?? 86400;
+        $this->credentials    = $options['credentials'] ?? false;
+    }
+
+    /**
+     * Static factory for backward compatibility and quick usage.
      */
     public static function middleware(array $options = []): callable
     {
-        $origins = $options['origins'] ?? ['*'];
-        $methods = $options['methods'] ?? ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'];
-        $headers = $options['headers'] ?? ['Content-Type', 'Authorization'];
-        $maxAge  = $options['max_age'] ?? 86400;
+        $instance = new self($options);
+        return [$instance, 'handle'];
+    }
 
-        return function (Request $request, callable $next) use ($origins, $methods, $headers, $maxAge): mixed {
-            $origin      = $_SERVER['HTTP_ORIGIN'] ?? '';
-            $allowOrigin = in_array('*', $origins, true)
-                ? '*'
-                : (in_array($origin, $origins, true) ? $origin : '');
+    /**
+     * Middleware entry point.
+     */
+    public function handle(Request $request, callable $next): mixed
+    {
+        $origin = $request->header('Origin');
+        $allowOrigin = $origin ? $this->resolveAllowedOrigin($origin) : null;
 
-            if ($allowOrigin !== '') {
-                header('Access-Control-Allow-Origin: ' . $allowOrigin);
-                header('Access-Control-Allow-Methods: ' . implode(', ', $methods));
-                header('Access-Control-Allow-Headers: ' . implode(', ', $headers));
-                header('Access-Control-Max-Age: ' . $maxAge);
+        if ($allowOrigin) {
+            header('Access-Control-Allow-Origin: ' . $allowOrigin);
+            header('Access-Control-Allow-Methods: ' . implode(', ', $this->methods));
+            header('Access-Control-Allow-Headers: ' . implode(', ', $this->headers));
+            header('Access-Control-Max-Age: ' . $this->maxAge);
+
+            if ($this->credentials) {
+                header('Access-Control-Allow-Credentials: true');
             }
 
-            // Short-circuit OPTIONS preflight — no need to invoke the handler.
-            if ($request->method() === 'OPTIONS') {
+            if (!empty($this->exposedHeaders)) {
+                header('Access-Control-Expose-Headers: ' . implode(', ', $this->exposedHeaders));
+            }
+        }
+
+        // Short-circuit OPTIONS preflight
+        if ($request->method() === 'OPTIONS') {
+            if (!headers_sent()) {
                 http_response_code(204);
-                return [];
             }
+            return [];
+        }
 
-            return $next($request);
-        };
+        return $next($request);
+    }
+
+    /**
+     * Determine if the requested origin matches the configured allowed origins.
+     */
+    private function resolveAllowedOrigin(string $origin): ?string
+    {
+        if (in_array('*', $this->origins, true)) {
+            return '*';
+        }
+
+        foreach ($this->origins as $allowed) {
+            if ($allowed === $origin) {
+                return $origin;
+            }
+            // Support basic wildcards/regex if the string starts with #
+            if (str_starts_with($allowed, '#') && preg_match($allowed, $origin)) {
+                return $origin;
+            }
+        }
+
+        return null;
     }
 }

@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 namespace Quill;
+ 
+ use Psr\Container\ContainerInterface;
 
 /**
  * Middleware Pipeline - Implementation of the "Onion" pattern.
@@ -11,6 +13,7 @@ class Pipeline
 {
     /** @var array<callable(Request, callable): mixed> */
     private array $middlewares = [];
+    private ?ContainerInterface $container = null;
 
     /**
      * Add middleware to the stack.
@@ -21,6 +24,11 @@ class Pipeline
     {
         $this->middlewares = $middlewares;
         return $this;
+    }
+
+    public function setContainer(ContainerInterface $container): void
+    {
+        $this->container = $container;
     }
 
     /**
@@ -35,8 +43,16 @@ class Pipeline
 
         $pipeline = array_reduce(
             array_reverse($this->middlewares),
-            static function ($next, $middleware) {
-                return static function ($request) use ($next, $middleware) {
+            function ($next, $middleware) {
+                return function ($request) use ($next, $middleware) {
+                    if (is_string($middleware) && $this->container?->has($middleware)) {
+                        $middleware = $this->container->get($middleware);
+                    }
+                    
+                    if (is_object($middleware) && method_exists($middleware, 'handle')) {
+                        return $middleware->handle($request, $next);
+                    }
+
                     return $middleware($request, $next);
                 };
             },
