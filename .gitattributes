@@ -1,0 +1,10 @@
+# Exclude development files from composer dist archives
+.github export-ignore
+tests export-ignore
+phpunit.xml export-ignore
+phpstan.neon export-ignore
+.gitignore export-ignore
+.gitattributes export-ignore
+
+# Enforce LF line endings for all text files
+* text=auto eol=lf
