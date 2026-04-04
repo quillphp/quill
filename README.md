@@ -30,6 +30,7 @@ Quill matches **Go Fiber** performance within **2.2%** on identical hardware and
 
 ### Feature Highlights
 
+- **Rust FFI Acceleration** — Optional zero-overhead C-ABI bridge using `matchit` (radix trie) and `sonic-rs` (SIMD JSON).
 - **Zero-Reflection Dispatch** — Handler metadata is pre-calculated at boot.
 - **Worker-Native** — Native support for Swoole, FrankenPHP, and RoadRunner.
 - **Extensible Plugin Ecosystem** — Plug-and-play middleware (CORS, Rate Limiting, Request IDs) and unified storage drivers.

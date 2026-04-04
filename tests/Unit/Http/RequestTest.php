@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Quill\Tests;
+namespace Quill\Tests\Unit\Http;
 
 use PHPUnit\Framework\TestCase;
-use Quill\Request;
+use Quill\Http\Request;
 
 class RequestTest extends TestCase
 {

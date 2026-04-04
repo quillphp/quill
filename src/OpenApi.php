@@ -7,6 +7,7 @@ namespace Quill;
 use ReflectionClass;
 use ReflectionMethod;
 use ReflectionNamedType;
+use Quill\Validation\DTO;
 
 /**
  * High-performance OpenAPI 3.1 Schema Generator for Quill.

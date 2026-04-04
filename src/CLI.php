@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace Quill;
 
+use Quill\Http\Request;
+use Quill\Http\HttpResponse;
+use Quill\Validation\DTO;
+
 /**
  * Modern CLI Orchestrator for Quill (2026).
  * Zero-dependency, high-performance terminal interface.
@@ -25,7 +29,6 @@ class CLI
     private array $commands = [
         'serve'           => 'Start the development server (default: 8000)',
         'routes'          => 'List all registered application routes',
-        'benchmark'       => 'Run the internal performance benchmarking suite',
         'make:controller' => 'Create a new controller/handler class',
         'make:dto'        => 'Create a new DTO class',
         'make:middleware' => 'Create a new middleware class',
@@ -48,7 +51,6 @@ class CLI
             'menu'            => $this->showMenu(),
             'serve'           => $this->serve($argv[2] ?? '8000'),
             'routes'          => $this->routes(),
-            'benchmark'       => $this->benchmark(),
             'make:handler'    => $this->makeHandler($argv[2] ?? null),
             'make:controller' => $this->makeHandler($argv[2] ?? null),
             'make:dto'        => $this->makeDTO($argv[2] ?? null),
@@ -72,8 +74,7 @@ class CLI
         echo " What would you like to do?\n\n";
         echo " " . $this->color("1.", "dim") . " Launch Dev Server     " . $this->color("./quill serve", "cyan") . "\n";
         echo " " . $this->color("2.", "dim") . " List Routes           " . $this->color("./quill routes", "cyan") . "\n";
-        echo " " . $this->color("3.", "dim") . " Run Benchmarks        " . $this->color("./quill benchmark", "cyan") . "\n";
-        echo " " . $this->color("4.", "dim") . " Create Controller     " . $this->color("./quill make:controller", "cyan") . "\n\n";
+        echo " " . $this->color("3.", "dim") . " Create Controller     " . $this->color("./quill make:controller", "cyan") . "\n\n";
         echo " " . $this->color("ℹ Tip:", "bold") . " Type " . $this->color("./quill help", "green") . " for the full list of commands.\n\n";
     }
 
@@ -120,11 +121,12 @@ class CLI
     {
         putenv('APP_ENV=dev');
         $app = new App(['route_cache' => false]);
+        $app->boot();
         if (file_exists(__DIR__ . '/../routes.php')) {
             require __DIR__ . '/../routes.php';
         }
         
-        $handlers = $app->getHandlers();
+        $handlers = $app->getRouter()->getRoutes();
         echo "\n " . $this->color("Quill Registered Routes", "bold") . "\n";
         echo " " . str_repeat("─", 80) . "\n";
         printf(" %-10s │ %-30s │ %-30s\n", "METHOD", "PATH", "HANDLER");
@@ -145,11 +147,6 @@ class CLI
         echo " " . str_repeat("─", 80) . "\n\n";
     }
 
-    private function benchmark(): void
-    {
-        (new Internal\Benchmark())->run();
-    }
-
     private function makeHandler(?string $name): void
     {
         $name = $this->validateName($name, 'Handler');
@@ -160,8 +157,8 @@ declare(strict_types=1);
 
 namespace Handlers;
 
-use Quill\Request;
-use Quill\HttpResponse;
+use Quill\Http\Request;
+use Quill\Http\HttpResponse;
 
 class $name
 {
@@ -185,7 +182,7 @@ declare(strict_types=1);
 
 namespace Dtos;
 
-use Quill\DTO;
+use Quill\Validation\DTO;
 
 /**
  * Modern DTO for Quill.
@@ -209,10 +206,15 @@ declare(strict_types=1);
 
 namespace Middlewares;
 
-use Quill\Request;
+use Quill\Http\Request;
 
 class $name
 {
+    /**
+     * @param Request \$request
+     * @param callable \$next
+     * @return mixed
+     */
     public function handle(Request \$request, callable \$next): mixed
     {
         // Pre-processing...

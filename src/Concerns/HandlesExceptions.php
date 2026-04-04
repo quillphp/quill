@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Quill\Concerns;
 
-use Quill\Response;
-use Quill\ValidationException;
+use Quill\Http\Response;
+use Quill\Validation\ValidationException;
 
 /**
  * Exception handling logic for the App class.
@@ -26,7 +26,8 @@ trait HandlesExceptions
             return;
         }
 
-        $status = ($e instanceof \InvalidArgumentException) ? 400 : 500;
+        $code = (int)$e->getCode();
+        $status = ($code >= 400 && $code < 600) ? $code : (($e instanceof \InvalidArgumentException) ? 400 : 500);
         
         if ($this->config['debug'] || $this->config['env'] === 'dev') {
             $response->json([
