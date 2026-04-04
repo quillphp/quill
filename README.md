@@ -32,7 +32,7 @@ Quill matches **Go Fiber** performance within **2.2%** on identical hardware and
 
 - **Zero-Reflection Dispatch** — Handler metadata is pre-calculated at boot.
 - **Worker-Native** — Native support for Swoole, FrankenPHP, and RoadRunner.
-- **Extensible Plugin Ecosystem** — GoFiber-inspired plug-and-play middleware (CORS, Rate Limiting, Request IDs) and unified storage drivers.
+- **Extensible Plugin Ecosystem** — Plug-and-play middleware (CORS, Rate Limiting, Request IDs) and unified storage drivers.
 - **Attribute-Based Validation** — Hydrated DTOs with zero runtime reflection.
 - **Microsecond Precision** — Direct response writing avoids standard output buffering.
 - **Interactive OpenAPI** — Built-in Swagger UI generated from code metadata.
