@@ -1,5 +1,6 @@
 {
     "name": "quillphp/quill",
+    "version": "0.0.1",
     "description": "Quill — High-performance PHP 8.3+ API framework. Boot once, serve forever.",
     "type": "library",
     "license": "MIT",

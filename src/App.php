@@ -12,6 +12,8 @@ namespace Quill;
  */
 class App
 {
+    public const string VERSION = '0.0.1';
+
     use Concerns\HandlesRouting;
     use Concerns\HandlesSwoole;
     use Concerns\HandlesExceptions;

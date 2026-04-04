@@ -12,7 +12,7 @@ use Quill\App;
 trait HandlesRouting
 {
     /** @var array<array{string, string, callable|array<string>}> */
-    private array $handlers = [];
+    protected array $handlers = [];
     /** @var array<int, string> */
     private array $groupStack = [];
 
