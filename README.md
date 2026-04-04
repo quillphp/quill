@@ -7,7 +7,7 @@
   [![CI](https://github.com/quillphp/quill/actions/workflows/ci.yml/badge.svg)](https://github.com/quillphp/quill/actions/workflows/ci.yml)
   [![Benchmark](https://github.com/quillphp/quill/actions/workflows/benchmark.yml/badge.svg)](https://github.com/quillphp/quill/actions/workflows/benchmark.yml)
   [![PHP](https://img.shields.io/badge/php-%5E8.3-777bb4.svg)](https://php.net)
-  [![PHPStan](https://img.shields.io/badge/PHPStan-level%206-2196F3.svg)](https://phpstan.org)
+  [![PHPStan](https://img.shields.io/badge/PHPStan-level%209-2196F3.svg)](https://phpstan.org)
   [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
   [**Official Documentation**](https://quillphp.github.io/quill) · [**Benchmarks**](.github/docs/benchmarks.md) · [**Quick Start**](.github/docs/getting-started.md) · [**Architecture**](.github/docs/architecture.md)
@@ -32,6 +32,7 @@ Quill matches **Go Fiber** performance within **2.2%** on identical hardware and
 
 - **Zero-Reflection Dispatch** — Handler metadata is pre-calculated at boot.
 - **Worker-Native** — Native support for Swoole, FrankenPHP, and RoadRunner.
+- **Extensible Plugin Ecosystem** — GoFiber-inspired plug-and-play middleware (CORS, Rate Limiting, Request IDs) and unified storage drivers.
 - **Attribute-Based Validation** — Hydrated DTOs with zero runtime reflection.
 - **Microsecond Precision** — Direct response writing avoids standard output buffering.
 - **Interactive OpenAPI** — Built-in Swagger UI generated from code metadata.

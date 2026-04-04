@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Quill;
  
  use Psr\Container\ContainerInterface;
+ use Quill\Contracts\PluginInterface;
 
 /**
  * Quill — High-Performance PHP API Orchestrator
@@ -18,6 +19,8 @@ class App
 
     /** @var array<callable|class-string> */
     private array $middlewares = [];
+    /** @var array<PluginInterface> */
+    private array $plugins = [];
     private ?Router $router = null;
     private Pipeline $pipeline;
     private bool $booted = false;
@@ -121,6 +124,15 @@ class App
 
 
     /**
+     * Register a plugin.
+     */
+    public function register(PluginInterface $plugin): void
+    {
+        $this->plugins[] = $plugin;
+        $plugin->register($this);
+    }
+
+    /**
      * Register a global middleware.
      * @param (callable(Request, callable): mixed)|class-string $middleware
      */
@@ -159,6 +171,11 @@ class App
         if ($this->router !== null) {
             $this->router->compile();
         }
+
+        foreach ($this->plugins as $plugin) {
+            $plugin->boot($this);
+        }
+
         $this->booted = true;
     }
 
