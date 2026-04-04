@@ -27,9 +27,9 @@ Named parameters are captured in the URL and injected into your handler.
 ```php
 $app->get('/users/{id}', fn($req) => ['id' => $req->param('id')]);
 
-// Parameters are automatically typed in class handlers if hinted:
-class UserHandler {
-    public function show(Request $req, int $id): array {
+// Parameters are automatically typed in action handlers if hinted:
+class GetUserAction {
+    public function __invoke(Request $req, int $id): array {
         return ['id' => $id]; // $id is already an integer
     }
 }
@@ -50,22 +50,17 @@ $app->group('/api/v2', function ($app) {
 
 ---
 
-## RESTful Resources
+## Action-Based Routing (ADR)
 
-The `resource` method automatically registers six standard CRUD routes.
+QuillPHP advocates for the Action-Domain-Responder (ADR) pattern, where each endpoint is handled by a single, focused class with an `__invoke` method.
 
 ```php
-$app->resource('/users', UserHandler::class);
+$app->get('/users', [\Handlers\User\ListUsersAction::class, '__invoke']);
+$app->post('/users', [\Handlers\User\CreateUserAction::class, '__invoke']);
+$app->get('/users/{id}', [\Handlers\User\GetUserAction::class, '__invoke']);
+$app->put('/users/{id}', [\Handlers\User\UpdateUserAction::class, '__invoke']);
+$app->delete('/users/{id}', [\Handlers\User\DeleteUserAction::class, '__invoke']);
 ```
-
-| Method | Path | Handler method |
-|---|---|---|
-| `GET` | `/users` | `UserHandler::index` |
-| `POST` | `/users` | `UserHandler::store` |
-| `GET` | `/users/{id}` | `UserHandler::show` |
-| `PUT` | `/users/{id}` | `UserHandler::update` |
-| `PATCH` | `/users/{id}` | `UserHandler::update` |
-| `DELETE` | `/users/{id}` | `UserHandler::destroy` |
 
 ---
 
@@ -74,8 +69,8 @@ $app->resource('/users', UserHandler::class);
 Quill allows three types of handlers:
 
 1. **Closures:** `fn(Request $req) => [...]`
-2. **Class Tuples:** `[UserHandler::class, 'store']` — Best for auto-validation.
-3. **Callable Objects:** Any `__invoke`able class.
+2. **Callable Objects:** Any `__invoke`able class (Recommended for ADR).
+3. **Class Tuples:** `[BenchHandler::class, 'echo']` — High performance mapping for grouping similar endpoints.
 
 ---
 

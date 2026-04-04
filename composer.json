@@ -28,7 +28,8 @@
             "Quill\\": "src/",
             "Quill\\Attributes\\": "attributes/",
             "Handlers\\": "handlers/",
-            "Dtos\\": "dtos/"
+            "Dtos\\": "dtos/",
+            "Domain\\": "domain/"
         }
     },
     "autoload-dev": {

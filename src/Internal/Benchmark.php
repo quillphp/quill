@@ -6,8 +6,8 @@ namespace Quill\Internal;
 
 use Quill\App;
 use Quill\Request;
-use Handlers\BenchHandler;
-use Handlers\UserHandler;
+use Handlers\Bench\BenchHandler;
+use Handlers\User\CreateUserAction;
 
 /**
  * Native Benchmarking Engine for Quill.
@@ -26,7 +26,7 @@ class Benchmark
         $this->app->get('/hello',      [BenchHandler::class, 'hello']);
         $this->app->get('/users/{id}', [BenchHandler::class, 'user']);
         $this->app->post('/echo',      [BenchHandler::class, 'echo']);
-        $this->app->post('/users',     [UserHandler::class, 'store']);
+        $this->app->post('/users',     [CreateUserAction::class, '__invoke']);
         
         $this->app->boot();
     }
@@ -63,7 +63,7 @@ class Benchmark
             ob_end_clean();
         });
 
-        $this->bench('POST /users   (UserHandler + DTO)', 50_000, function () use ($reqDto) {
+        $this->bench('POST /users   (CreateUserAction + DTO)', 50_000, function () use ($reqDto) {
             ob_start();
             $this->app->handle($reqDto);
             ob_end_clean();

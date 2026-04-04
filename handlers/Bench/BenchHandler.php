@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Handlers;
+namespace Handlers\Bench;
 
 use Quill\Request;
 

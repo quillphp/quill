@@ -22,7 +22,8 @@ if (file_exists(__DIR__ . '/../../vendor/autoload.php')) {
     require __DIR__ . '/vendor/autoload.php';
 }
 
-use Handlers\BenchHandler;
+use Handlers\Bench\BenchHandler;
+use Handlers\User\CreateUserAction;
 use Quill\App;
 use Quill\Request;
 
@@ -34,7 +35,7 @@ $app = new App(['route_cache' => false]);
 $app->get('/hello',       [BenchHandler::class, 'hello']);
 $app->get('/users/{id}',  [BenchHandler::class, 'user']);
 $app->post('/echo',       [BenchHandler::class, 'echo']);
-$app->post('/users',      [\Handlers\UserHandler::class, 'store']);
+$app->post('/users',      [CreateUserAction::class, '__invoke']);
 
 $app->boot();
 
@@ -101,7 +102,7 @@ bench('POST /echo    (BenchHandler::echo)',    $N, static function () use ($app,
     ob_end_clean();
 });
 
-bench('POST /users   (UserHandler + DTO)',  50_000, static function () use ($app, $reqDto): void {
+bench('POST /users   (CreateUserAction + DTO)',  50_000, static function () use ($app, $reqDto): void {
     ob_start();
     $app->handle($reqDto);
     ob_end_clean();

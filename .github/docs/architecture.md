@@ -89,5 +89,13 @@ Quill provides a unified exception bridge:
 ## 5. Security & Isolation
 
 - **Immutable DTOs**: We recommend using `readonly` properties for DTOs to ensure data integrity through the handler chain.
-- **Strict Typing**: Quill enforces strict types in the `paramCache`, catching type mismatches at the framework level before they reach the business logic.
 - **CORS First-Class**: The `Cors` middleware handles preflight (`OPTIONS`) requests efficiently, often resolving them before they reach the routing layer.
+
+---
+
+## 6. Recommended Architecture (ADR & Hexagonal)
+
+QuillPHP strictly enforces a clean architectural separation. Users are encouraged to completely drop MVC abstractions in favor of **Action-Domain-Responder (ADR)** and **Hexagonal Architecture**.
+- **Actions (`handlers/`)**: Purely Invokable classes mapping directly to single operations. Discard multi-method Controllers. 
+- **CQRS Payload (`dtos/`)**: Convert HTTP Requests into typed `Quill\DTO` classes that act as Commands/Queries, validating purely via Attributes.
+- **Domain (`domain/`)**: Completely isolated business logic. Actions dispatch mapped Commands directly to Domain Application Services.
