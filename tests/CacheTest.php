@@ -55,8 +55,12 @@ class CacheTest extends TestCase
              $this->markTestSkipped('APCu extension not available.');
         }
 
+        if (PHP_SAPI === 'cli' && !ini_get('apc.enable_cli')) {
+             $this->markTestSkipped('APCu is disabled for CLI (apc.enable_cli=0).');
+        }
+
         $cache = new ApcuCache('test_');
-        $cache->set('foo', 'bar');
+        $this->assertTrue($cache->set('foo', 'bar'), 'APCu set() should return true');
         $this->assertEquals('bar', $cache->get('foo'));
         
         $cache->delete('foo');
