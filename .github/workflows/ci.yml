@@ -20,7 +20,7 @@ on:
 
 jobs:
   test:
-    name: PHPUnit — PHP ${{ matrix.php }}
+    name: Tests (Pest) — PHP ${{ matrix.php }}
     runs-on: ubuntu-latest
 
     strategy:
@@ -47,8 +47,8 @@ jobs:
       - name: Install dependencies
         run: composer install --prefer-dist --no-progress --no-interaction
 
-      - name: Run PHPUnit
-        run: vendor/bin/phpunit --no-coverage
+      - name: Run Tests (Pest)
+        run: vendor/bin/pest --no-coverage
 
   phpstan:
     name: PHPStan (level 6)

@@ -40,7 +40,7 @@
         "bin/quill"
     ],
     "scripts": {
-        "test": "phpunit tests/",
+        "test": "pest tests/",
         "analyze": "phpstan analyse --memory-limit 256M",
         "serve": "bin/quill serve",
         "bench": "bin/quill benchmark"
