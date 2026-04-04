@@ -18,9 +18,9 @@ class DoctrineBridge
      * Configure and boot Doctrine EntityManager.
      *
      * @param array<string, mixed> $config Database and ORM configuration
-     * @param ContainerInterface|null $container Optional PSR-11 container to bind to
+     * @param object|null $container Optional container to bind to
      */
-    public static function boot(array $config, ?ContainerInterface $container = null): EntityManager
+    public static function boot(array $config, ?object $container = null): object
     {
         $setup = ORMSetup::createAttributeMetadataConfiguration(
             paths: $config['paths'] ?? [getcwd() . '/src'],

@@ -29,7 +29,7 @@ class DatabaseTest extends TestCase
         $app = new App();
         $capsule = EloquentBridge::boot($config, $app);
 
-        $this->assertInstanceOf('Illuminate\Database\Capsule\Manager', $capsule);
+        $this->assertInstanceOf(\Illuminate\Database\Capsule\Manager::class, $capsule);
         $this->assertTrue($app->has('db'));
     }
 
@@ -51,7 +51,7 @@ class DatabaseTest extends TestCase
         $app = new App();
         $em = DoctrineBridge::boot($config, $app);
 
-        $this->assertInstanceOf('Doctrine\ORM\EntityManager', $em);
+        $this->assertInstanceOf(\Doctrine\ORM\EntityManager::class, $em);
         $this->assertTrue($app->has(\Doctrine\ORM\EntityManager::class));
     }
 }

@@ -57,6 +57,9 @@ class ApcuCache implements CacheInterface
         return $final;
     }
 
+    /**
+     * @param iterable<string, mixed> $values
+     */
     public function setMultiple(iterable $values, \DateInterval|int|null $ttl = null): bool
     {
         $prefixedValues = [];

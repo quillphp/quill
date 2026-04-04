@@ -18,9 +18,9 @@ class EloquentBridge
      * Configure and boot Eloquent.
      *
      * @param array<string, mixed> $config Database configuration
-     * @param ContainerInterface|null $container Optional PSR-11 container to bind to
+     * @param object|null $container Optional container to bind to
      */
-    public static function boot(array $config, ?ContainerInterface $container = null): Capsule
+    public static function boot(array $config, ?object $container = null): object
     {
         $capsule = new Capsule;
 

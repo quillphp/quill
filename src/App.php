@@ -87,6 +87,32 @@ class App
         $this->container = $container;
     }
 
+    /**
+     * PSR-11: Check if an entry exists in the container.
+     */
+    public function has(string $id): bool
+    {
+        return $this->container?->has($id) ?? false;
+    }
+
+    /**
+     * Set an entry in the container (if the internal container supports it).
+     */
+    public function set(string $id, mixed $value): void
+    {
+        if ($this->container && method_exists($this->container, 'set')) {
+            $this->container->set($id, $value);
+        }
+    }
+
+    /**
+     * Get the underlying PSR-11 container.
+     */
+    public function getContainer(): ?ContainerInterface
+    {
+        return $this->container;
+    }
+
 
     /**
      * Register a global middleware.

@@ -74,6 +74,9 @@ class FileCache implements CacheInterface
         return $results;
     }
 
+    /**
+     * @param iterable<string, mixed> $values
+     */
     public function setMultiple(iterable $values, \DateInterval|int|null $ttl = null): bool
     {
         $success = true;
