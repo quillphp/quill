@@ -10,16 +10,18 @@ declare(strict_types=1);
  * (no ob_start / headers_list bridge).
  *
  * Start via Docker:
- *   SWOOLE=1 bash scripts/bench_run.sh
+ *   SWOOLE=1 bash .github/infra/bench_run.sh
  *
  * Or manually (requires swoole extension):
- *   SWOOLE_WORKERS=8 SWOOLE_PORT=8080 php scripts/swoole_bench.php
+ *   SWOOLE_WORKERS=8 SWOOLE_PORT=8080 php .github/infra/swoole_bench.php
  *
  * For SWOOLE_BASE mode on Linux (no master-process dispatch, SO_REUSEPORT):
- *   SWOOLE_MODE=base SWOOLE_WORKERS=8 php scripts/swoole_bench.php
+ *   SWOOLE_MODE=base SWOOLE_WORKERS=8 php .github/infra/swoole_bench.php
  */
 
-require __DIR__ . '/../../vendor/autoload.php';
+if (file_exists(__DIR__ . '/../../vendor/autoload.php')) {
+    require __DIR__ . '/../../vendor/autoload.php';
+}
 
 use Handlers\BenchHandler;
 use Quill\App;

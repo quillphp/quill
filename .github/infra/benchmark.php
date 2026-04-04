@@ -9,13 +9,18 @@ declare(strict_types=1);
  * Run with JIT for the most representative numbers:
  *
  *   php -d opcache.enable_cli=1 -d opcache.jit=tracing \
- *       -d opcache.jit_buffer_size=256M scripts/benchmark.php
+ *       -d opcache.jit_buffer_size=256M .github/infra/benchmark.php
  *
  * Or via GitHub Actions (bench-inprocess job) where OPcache + JIT are already
  * configured in the ini-values step.
  */
 
-require __DIR__ . '/../../vendor/autoload.php';
+// If running standalone, find the root vendor.
+if (file_exists(__DIR__ . '/../../vendor/autoload.php')) {
+    require __DIR__ . '/../../vendor/autoload.php';
+} else {
+    require __DIR__ . '/vendor/autoload.php';
+}
 
 use Handlers\BenchHandler;
 use Quill\App;

@@ -6,10 +6,10 @@ declare(strict_types=1);
  * Quill benchmark server entry point.
  *
  * Start with the PHP built-in server:
- *   php -S 127.0.0.1:8765 scripts/bench_server.php
+ *   php -S 127.0.0.1:8765 .github/infra/bench_server.php
  *
  * Or with FrankenPHP (recommended for prod-grade numbers):
- *   frankenphp php-server -r scripts/bench_server.php --listen :8765
+ *   frankenphp php-server -r .github/infra/bench_server.php --listen :8765
  *
  * Routes
  * ──────
@@ -30,7 +30,9 @@ if (PHP_SAPI === 'cli-server') {
     }
 }
 
-require __DIR__ . '/../../vendor/autoload.php';
+if (file_exists(__DIR__ . '/../../vendor/autoload.php')) {
+    require __DIR__ . '/../../vendor/autoload.php';
+}
 
 use Handlers\BenchHandler;
 use Quill\App;
