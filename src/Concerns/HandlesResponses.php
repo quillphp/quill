@@ -38,7 +38,8 @@ trait HandlesResponses
         }
 
         if (!empty($result)) {
-            $response->json($result);
+            $status = (is_array($result) && isset($result['status'])) ? (int)$result['status'] : 200;
+            $response->json($result, $status);
             return;
         }
 

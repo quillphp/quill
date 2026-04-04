@@ -6,12 +6,12 @@ namespace Quill\Tests;
 
 use PHPUnit\Framework\TestCase;
 use Quill\App;
-use Quill\Cors;
+use Quill\Http\Cors;
 use Quill\Middleware\RateLimiter;
 use Quill\Middleware\InMemoryRateLimitStorage;
 use Quill\Middleware\SecurityHeaders;
-use Quill\HttpResponse;
-use Quill\Request;
+use Quill\Http\HttpResponse;
+use Quill\Http\Request;
 
 class SecurityTest extends TestCase
 {
@@ -49,7 +49,7 @@ class SecurityTest extends TestCase
 
     public function testCorsRegexOrigins(): void
     {
-        $app = new App(['route_cache' => false]);
+        $app = new App(['route_cache' => false, 'debug' => true]);
         $app->use(Cors::middleware([
             'origins' => ['https://domain.com', '#^https://.*\.my-saas\.com$#'],
         ]));
@@ -68,7 +68,7 @@ class SecurityTest extends TestCase
 
     public function testSecurityHeaders(): void
     {
-        $app = new App(['route_cache' => false]);
+        $app = new App(['route_cache' => false, 'debug' => true]);
         $app->use(new SecurityHeaders([
             'csp' => "default-src 'self'",
         ]));

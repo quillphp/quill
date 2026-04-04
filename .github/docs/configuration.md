@@ -33,7 +33,7 @@ $app = new App([
 
 ## Performance Tip
 
-Set `route_cache => false` in long-running worker modes (Swoole, FrankenPHP). The compiled dispatcher lives in memory for the process lifetime — no file cache is needed.
+Set `route_cache => false` in the long-running **Binary Server** mode. The compiled dispatcher lives in memory for the process lifetime — no file cache is needed.
 
 ---
 

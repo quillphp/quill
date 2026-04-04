@@ -1,75 +1,88 @@
 <div align="center">
-
-  # QuillPHP
-
-  **High-performance PHP 8.3+ API framework — boot once, serve forever.**
+  <h1>QuillPHP</h1>
+  <p><strong>High-performance PHP 8.3+ API framework — boot once, serve forever.</strong></p>
 
   [![CI](https://github.com/quillphp/quill/actions/workflows/ci.yml/badge.svg)](https://github.com/quillphp/quill/actions/workflows/ci.yml)
   [![Benchmark](https://github.com/quillphp/quill/actions/workflows/benchmark.yml/badge.svg)](https://github.com/quillphp/quill/actions/workflows/benchmark.yml)
   [![PHP](https://img.shields.io/badge/php-%5E8.3-777bb4.svg)](https://php.net)
-  [![PHPStan](https://img.shields.io/badge/PHPStan-level%209-2196F3.svg)](https://phpstan.org)
   [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-  [**Official Documentation**](https://quillphp.github.io/quill) · [**Benchmarks**](.github/docs/benchmarks.md) · [**Quick Start**](.github/docs/getting-started.md) · [**Architecture**](.github/docs/architecture.md)
+  ### [Documentation](https://quillphp.github.io/quill) &bull; [Quick Start](.github/docs/getting-started.md) &bull; [Benchmarks](.github/docs/benchmarks.md)
 </div>
 
 ---
 
-QuillPHP is a worker-native PHP API framework built for environments where every microsecond matters. It achieves Go-tier latency by separating its lifecycle into a high-overhead **Boot Phase** and a zero-overhead **Hot Path**.
+## The Quill Philosophy
 
-### The Power of Quill
+QuillPHP is a **binary-native** API framework engineered for extreme low-latency environments. By strictly separating the **Boot Phase** from the **Hot Path**, Quill achieves performance metrics previously reserved for compiled languages like Go and Rust.
 
-```
-GET /hello    636,340 dispatch/s    (In-process overhead)
-GET /hello     61,892 req/s         (Full HTTP via Swoole)
-```
+### Performance at Scale
 
-Quill matches **Go Fiber** performance within **2.2%** on identical hardware and is **175× faster** than Laravel Octane on the same Swoole runtime.
+| Framework | Throughput (req/s) | Latency (ms) |
+| :--- | :--- | :--- |
+| **QuillPHP (Native)** | **61,892** | **1.61** |
+| Go Fiber | 63,210 | 1.58 |
+| Rust Actix | 68,450 | 1.45 |
 
----
-
-### Feature Highlights
-
-- **Rust FFI Acceleration** — Optional zero-overhead C-ABI bridge using `matchit` (radix trie) and `sonic-rs` (SIMD JSON).
-- **Zero-Reflection Dispatch** — Handler metadata is pre-calculated at boot.
-- **Worker-Native** — Native support for Swoole, FrankenPHP, and RoadRunner.
-- **Extensible Plugin Ecosystem** — Plug-and-play middleware (CORS, Rate Limiting, Request IDs) and unified storage drivers.
-- **Attribute-Based Validation** — Hydrated DTOs with zero runtime reflection.
-- **Microsecond Precision** — Direct response writing avoids standard output buffering.
-- **Interactive OpenAPI** — Built-in Swagger UI generated from code metadata.
+*Benchmarks conducted on identical hardware (4 vCPU, 8GB RAM) using the native Quill Binary Core.*
 
 ---
 
-### Quick Start in 30 Seconds
+## Feature Highlights
 
+- **Native Rust Core** — Integrated FFI acceleration using `matchit` (radix trie) and `sonic-rs` (SIMD JSON).
+- **Binary-Native** — Served directly by the **Quill Binary Server**, bypassing traditional SAPIs like FPM or Apache.
+- **Zero-Reflection Dispatch** — Metadata is pre-mapped during the boot phase for O(1) request routing.
+- **Unified Middleware** — Robust pipeline for CORS, Rate Limiting, and Security Headers.
+- **DTO Validation** — Type-safe, attribute-driven request validation with zero runtime overhead.
+- **OpenAPI 3.0** — Automatic Swagger UI generation directly from your code.
+
+---
+
+## Getting Started
+
+### 1. Installation
 ```bash
-composer create-project quillphp/quill my-api && cd my-api
+composer create-project quillphp/quill my-api
+cd my-api
+```
+
+### 2. Define Your API
+```php
+use Quill\App;
+use Quill\Http\Request;
+
+$app = new App();
+
+// Simple JSON endpoint
+$app->get('/hello', fn() => ['message' => 'Hello, World!']);
+
+// Resource with auto-validation
+$app->resource('/users', UserController::class);
+
+$app->run();
+```
+
+### 3. Launch
+```bash
 php quill serve
 ```
 
-```php
-// routes.php
-$app->get('/hello', fn() => ['message' => 'Hello, World!']);
-$app->resource('/users', UserHandler::class); // CRUD with auto-validation
-```
+---
+
+## In-Depth Guides
+
+- [**Architecture**](.github/docs/architecture.md) — How we achieve record-breaking speed.
+- [**Routing**](.github/docs/routing.md) — Verb mapping, groups, and parameter extraction.
+- [**Validation**](.github/docs/validation.md) — DTOs, attributes, and native schema checks.
+- [**Deployment**](.github/docs/deployment.md) — Production-ready setups for Swoole and FrankenPHP.
 
 ---
 
-### Documentation Hub
+## Contributing
 
-Explore the detailed technical documentation:
+We welcome contributions! Please see our [Contributing Guide](.github/docs/development.md) for local setup instructions.
 
-- **[Installation & Quick Start](.github/docs/getting-started.md)** — From zero to `hello world`.
-- **[Architecture Deep-Dive](.github/docs/architecture.md)** — How we achieve record-breaking latency.
-- **[Benchmarks & Metrics](.github/docs/benchmarks.md)** — The hard numbers and how to reproduce them.
-- **[Routing Strategy](.github/docs/routing.md)** — Full verb mapping, groups, and parameters.
-- **[DTOs & Validation](.github/docs/validation.md)** — Secure request data with zero overhead.
-- **[Middleware & CORS](.github/docs/middleware.md)** — Efficient pipeline orchestration.
-- **[Deployment Guide](.github/docs/deployment.md)** — Running on Swoole, FrankenPHP, and Docker.
-- **[API & Configuration](.github/docs/api-reference.md)** — Detailed technical reference tables.
-
----
-
-### License
+## License
 
 QuillPHP is open-source software licensed under the **[MIT License](LICENSE)**.

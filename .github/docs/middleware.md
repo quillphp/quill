@@ -22,7 +22,7 @@ $app->use(function (Request $req, callable $next) {
 Quill includes a first-class CORS middleware.
 
 ```php
-use Quill\Cors;
+use Quill\Http\Cors;
 
 $app->use(Cors::middleware(
     origins: ['https://app.example.com'],
@@ -47,7 +47,7 @@ $app->use(function (Request $req, callable $next) {
 
     $token = $req->header('Authorization');
     if (!$token || !str_starts_with($token, 'Bearer ')) {
-        return new \Quill\HttpResponse(['error' => 'Unauthorized'], 401);
+        return new \Quill\Http\HttpResponse(['error' => 'Unauthorized'], 401);
     }
 
     return $next($req);

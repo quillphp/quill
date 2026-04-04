@@ -6,10 +6,13 @@ namespace Quill;
 
 use Psr\Container\ContainerInterface;
 use Quill\Http\Request;
+use Quill\Http\Response;
 use Quill\Routing\Router;
 use Quill\Runtime\Runtime;
 use Quill\Runtime\Server;
 use Quill\Concerns\HandlesExceptions;
+use Quill\Concerns\HandlesRouting;
+use Quill\Concerns\HandlesResponses;
 
 /**
  * The Quill Application Kernel.
@@ -18,13 +21,14 @@ use Quill\Concerns\HandlesExceptions;
  */
 class App
 {
-    use HandlesExceptions;
+    use HandlesExceptions, HandlesRouting, HandlesResponses;
 
     protected Router $router;
     protected ?ContainerInterface $container = null;
     protected array $config = [];
     protected array $middlewares = [];
     protected ?Pipeline $pipeline = null;
+    protected bool $booted = false;
 
     public function __construct(array $config = [])
     {
@@ -40,17 +44,37 @@ class App
 
     public function boot(): void
     {
+        if ($this->booted) {
+            return;
+        }
+
         // Initialize the mandatory binary runtime (automatic discovery)
         Runtime::boot();
 
         if (!Runtime::isAvailable()) {
             throw new \RuntimeException("Quill Core (libquill) not found. Please ensure the native engine is installed.");
         }
+
+        // Sync handlers from trait to router
+        foreach ($this->getHandlers() as [$method, $path, $handler]) {
+            $this->router->addRoute($method, $path, $handler);
+        }
+
+        $this->booted = true;
     }
 
     /**
-     * Run the application loop.
-     * Supports Runtime (Native), Swoole, and Worker modes.
+     * Entry point for manual request handling (useful for testing).
+     */
+    public function handle(?Request $request = null): void
+    {
+        $this->boot();
+        $this->handleRequest($request);
+    }
+
+    /**
+     * Start the Quill application lifecycle.
+     * Serves the application via the high-performance Binary Core.
      */
     public function run(): void
     {
@@ -73,23 +97,45 @@ class App
         $server->start($port);
     }
 
-    protected function handleRequest(): void
+    public function use(callable|string|object $middleware): static
+    {
+        $this->middlewares[] = $middleware;
+        return $this;
+    }
+
+    public function setContainer(ContainerInterface $container): static
+    {
+        $this->container = $container;
+        $this->router->setContainer($container);
+        $this->pipeline->setContainer($container);
+        return $this;
+    }
+
+    protected function handleRequest(?Request $request = null): void
     {
         try {
-            $request = new Request();
-            $method  = $_SERVER['REQUEST_METHOD'] ?? 'GET';
-            $path    = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
+            $request = $request ?? new Request();
             
-            $route   = $this->router->dispatch($method, (string)$path);
-            $result  = $route->execute($request);
+            $result = $this->pipeline
+                ->send($this->middlewares)
+                ->then($request, function ($request) {
+                    $method  = $request->method();
+                    $path    = $request->path();
+                    $route   = $this->router->dispatch($method, (string)$path);
 
-            if (is_string($result)) {
-                echo $result;
-            } else {
-                echo json_encode($result);
-            }
+                    if (!$route->isFound()) {
+                        $status = $route->isMethodNotAllowed() ? 405 : 404;
+                        $error  = $route->isMethodNotAllowed() ? 'Method Not Allowed' : 'Not Found';
+                        return ['status' => $status, 'error' => $error];
+                    }
+
+                    return $route->execute($request);
+                });
+
+            $this->sendResponse($result, new Response());
         } catch (\Throwable $e) {
-            $this->renderException($e);
+            $response = new Response();
+            $this->handleException($e, $response);
         }
     }
 

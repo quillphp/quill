@@ -21,9 +21,12 @@ class RuntimeTest extends TestCase
             $this->markTestSkipped('FFI extension required');
         }
 
+        $libName = PHP_OS_FAMILY === 'Darwin' ? 'libquill.dylib' : 'libquill.so';
+        $vendorBin = __DIR__ . '/../../../vendor/quillphp/quill-core/bin/';
+
         Runtime::init(
-            soPath: __DIR__ . '/../../../build/libquill.so',
-            headerPath: __DIR__ . '/../../../quill.h'
+            soPath:     $vendorBin . $libName,
+            headerPath: $vendorBin . 'quill.h'
         );
 
         $this->assertTrue(Runtime::isAvailable());

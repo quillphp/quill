@@ -45,5 +45,5 @@ Access logs add **zero overhead** when the logger is set to `null`. This is achi
 
 ## What's Next?
 
-- Learn about **[Deployment](deployment.md)** to run on Swoole in production.
+- Learn about **[Deployment](deployment.md)** to run the Binary Server in production.
 - Review the **[Configuration Reference](configuration.md)**.

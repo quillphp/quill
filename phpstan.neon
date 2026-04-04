@@ -8,5 +8,5 @@ parameters:
         - vendor/autoload.php
     reportUnmatchedIgnoredErrors: false
     ignoreErrors:
-        - '#(Class|Instantiated class|Method .* has invalid return type|Call to .*|Access to .*) (Swoole|Spiral\\RoadRunner|Illuminate|Doctrine).*#'
-        - '#Argument .* of .* method .* expects (Swoole|Spiral\\RoadRunner|Illuminate|Doctrine).*#'
+        - '#(Class|Instantiated class|Method .* has invalid return type|Call to .*|Access to .*) (Illuminate|Doctrine).*#'
+        - '#Argument .* of .* method .* expects (Illuminate|Doctrine).*#'

@@ -31,13 +31,13 @@ final class Server
     {
         $ffi = Runtime::get();
 
-        $this->callback = $ffi->callback(
+        $this->callback = \FFI::callback(
             'int (*)(uint32_t, char*, char*, char*, uint32_t)',
             function (int $handlerId, string $paramsJson, string $dtoDataJson, $outResponse, int $max) {
                 try {
                     $params = Json::decode($paramsJson);
                     $dtoData = Json::decode($dtoDataJson);
-                    
+
                     $request = new Request();
                     $request->setPathVars($params);
 
@@ -50,7 +50,7 @@ final class Server
                     );
 
                     $result = $routeMatch->execute($request);
-                    
+
                     $response = [
                         'status' => 200,
                         'headers' => [
@@ -59,11 +59,12 @@ final class Server
                         ],
                         'body' => $result
                     ];
-                    
+
                     $json = Json::encode($response);
                     $len = strlen($json);
-                    if ($len >= $max) $len = $max - 1;
-                    
+                    if ($len >= $max)
+                        $len = $max - 1;
+
                     /** @phpstan-ignore-next-line */
                     \FFI::memcpy($outResponse, $json, $len);
                     return $len;
@@ -73,18 +74,18 @@ final class Server
             }
         );
 
-        $handle    = $this->router->getHandle();
-        $registry  = Validator::getRegistry();
+        $handle = $this->router->getHandle();
+        $registry = Validator::getRegistry();
 
         if ($handle === null) {
             throw new \RuntimeException("Quill Router handle not initialized.");
         }
 
-        echo "🚀 Quill Runtime listening on http://0.0.0.0:$port\n";
-        
+        echo "Quill Runtime listening on http://0.0.0.0:$port\n";
+
         /** @phpstan-ignore-next-line */
         $res = $ffi->quill_server_start($handle, $registry, $port, $this->callback);
-        
+
         if ($res !== 0) {
             throw new \RuntimeException("Failed to start Quill Server (Exit code: $res)");
         }

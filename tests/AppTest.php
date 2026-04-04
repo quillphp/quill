@@ -18,7 +18,7 @@ class AppTest extends TestCase
      */
     private function makeApp(array $config = []): App
     {
-        return new App(array_merge(['route_cache' => false, 'debug' => false, 'env' => 'prod'], $config));
+        return new App(array_merge(['route_cache' => false, 'debug' => true, 'env' => 'dev'], $config));
     }
 
     /**

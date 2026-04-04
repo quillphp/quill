@@ -58,8 +58,8 @@ class Response
     {
         $this->status = $status;
 
+        http_response_code($status);
         if (!headers_sent()) {
-            http_response_code($status);
             header('Content-Type: application/json');
             foreach ($this->headers as $name => $value) {
                 header("$name: $value");
@@ -84,8 +84,8 @@ class Response
     {
         $this->status = $status;
 
+        http_response_code($status);
         if (!headers_sent()) {
-            http_response_code($status);
             header('Content-Type: text/html');
             foreach ($this->headers as $name => $value) {
                 header("$name: $value");

@@ -1,82 +1,52 @@
-# Getting Started
+# Getting Started with QuillPHP
 
-QuillPHP is a high-performance PHP API framework. This guide will help you install and run your first Quill application.
+Build O(1) latency APIs in minutes with the **Quill Binary Core**.
 
 ## Requirements
 
-- **PHP 8.3+** (NTS recommended for JIT)
-- **Composer 2.0+**
-- **Extension (Optional/Recommended):** Swoole (for peak performance)
+- **PHP 8.3+** (CLI mode)
+- **FFI Extension** enabled (`ffi.enable=1`)
+- **JSON & MBString Extensions**
+- **Quill Binary Core** (for your OS, in `bin/`)
 
 ## Installation
 
 ```bash
 composer create-project quillphp/quill my-api
 cd my-api
-php quill serve
 ```
 
-This will set up a fresh project and start the built-in development server at `http://127.0.0.1:8765`.
+## Serving Your API
 
----
-
-## Folder Structure
-
-- `attributes/` — Custom validation rules and metadata.
-- `dtos/` — Data Transfer Objects for automatic validation.
-- `handlers/` — Business logic (similar to controllers).
-- `public/` — Public entry point (`index.php`) and documentation assets.
-- `src/` — The core QuillPHP framework.
-- `tests/` — PHPUnit test suite.
-- `routes.php` — Your application's API routing map.
-- `quill` — The project CLI tool.
-
----
-
-## First Steps
-
-Define your routes in `routes.php`:
-
-```php
-<?php
-
-use Handlers\UserHandler;
-
-/** @var \Quill\App $app */
-
-// Closure route
-$app->get('/hello', fn() => ['message' => 'Hello, World!']);
-
-// Class-based handler
-$app->post('/users', [UserHandler::class, 'store']);
-
-// Full RESTful resource
-$app->resource('/users', UserHandler::class);
-```
-
-Run the built-in server:
+Quill serves HTTP requests directly via its **Native Binary Core**. You do not need a web server like Apache or Nginx for development.
 
 ```bash
-# via Composer script
-composer serve
-
-# or directly
-./quill serve
+# Start the binary server
+php bin/quill serve --port=8080
 ```
 
----
+## Building Your First Route
 
-## The CLI Tool
+Edit `routes.php` (or your entry point) to define a simple GET route.
 
-Quill comes with a built-in CLI tool to help manage your development workflow:
+```php
+use Quill\App;
+use Quill\Http\Request;
 
-- `php quill serve` — Start the development server.
-- `php quill benchmark` — Run the in-process performance benchmarks.
+$app = new App();
 
----
+// Define a route
+$app->get('/hello', function (Request $request) {
+    return ['message' => 'Hello from the Binary Core!'];
+});
 
-## What's Next?
+// Start the lifecycle
+$app->run();
+```
 
-- Explore **[Routing](routing.md)** for advanced route definitions.
-- Set up **[DTOs & Validation](validation.md)** for your request data.
-- Learn about **[Deployment](deployment.md)** to run on Swoole in production.
+## Next Steps
+
+- **[Architecture Deep-Dive](architecture.md)** — Learn how the binary core offloads the "Hot Path".
+- **[Routing Strategies](routing.md)** — Master verb mapping, groups, and parameter extraction.
+- **[Validation & DTOs](validation.md)** — Use type-safe, binary-validated request data.
+- **[Middleware](middleware.md)** — Build robust pipelines for security and CORS.

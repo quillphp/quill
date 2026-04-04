@@ -30,7 +30,7 @@
         "php": "^8.3",
         "psr/container": "^2.0",
         "psr/simple-cache": "^3.0",
-        "quillphp/quill-core": "0.0.1",
+        "quillphp/quill-core": "^0.0.1",
         "vlucas/phpdotenv": "^5.6"
     },
     "require-dev": {

@@ -14,7 +14,7 @@ For a deep-dive into how QuillPHP achieves its performance benchmarks, read the 
 
 ### Key Concepts:
 - **[Zero-Reflection Dispatch](architecture.md#zero-reflection-optimization)**: Discover how we pre-calculate handler metadata at boot.
-- **[Swoole Native Bridge](architecture.md#zero-copy-swoole-bridge)**: How we avoid output buffering to save microseconds.
+- **[Binary Output Stream](architecture.md#binary-output-stream)**: How we stream responses directly from native memory.
 
 ## Feature Guides
 
@@ -30,7 +30,7 @@ Detailed documentation for the framework's core features:
 How to run QuillPHP in production:
 
 - **[Benchmarks](benchmarks.md)**: Comparative HTTP and In-Process metrics.
-- **[Deployment Guide](deployment.md)**: Swoole, FrankenPHP, Docker, and OPcache tuning.
+- **[Deployment Guide](deployment.md)**: Binary Server, Docker, and OPcache tuning.
 - **[Configuration Reference](configuration.md)**: Full list of application settings.
 
 ## API Reference

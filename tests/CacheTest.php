@@ -7,7 +7,6 @@ namespace Quill\Tests;
 use PHPUnit\Framework\TestCase;
 use Quill\Cache\FileCache;
 use Quill\Cache\ApcuCache;
-use Quill\Cache\SwooleTableCache;
 
 class CacheTest extends TestCase
 {
@@ -68,25 +67,6 @@ class CacheTest extends TestCase
         $this->assertNull($cache->get('foo'));
     }
 
-    /**
-     * @requires extension swoole
-     */
-    public function testSwooleTableCacheBasics(): void
-    {
-        if (!class_exists('Swoole\Table')) {
-            $this->markTestSkipped('Swoole extension not available.');
-        }
-
-        $cache = new SwooleTableCache(64);
-        $cache->set('ultra', 'fast');
-        $this->assertEquals('fast', $cache->get('ultra'));
-        
-        $cache->setMultiple(['a' => 1, 'b' => 2]);
-        /** @var array<string, mixed> $results */
-        $results = $cache->getMultiple(['a', 'b']);
-        $this->assertEquals(1, $results['a']);
-        $this->assertEquals(2, $results['b']);
-    }
 
     public function testCacheTtl(): void
     {

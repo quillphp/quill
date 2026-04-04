@@ -6,96 +6,85 @@ QuillPHP is built on a "Boot Once, Serve Forever" philosophy. Unlike traditional
 
 ## 1. Request Lifecycle Overview
 
-QuillPHP handles requests in a linear, highly optimized flow. Unlike traditional frameworks that re-init for every request, Quill separates core logic into a **Boot Phase** and a **Hot Path**.
+QuillPHP handles requests via a high-performance **Binary Core** written in Rust. This core manages the HTTP server, routing, and initial validation entirely in native code before bridging to PHP via FFI.
 
 ```mermaid
 graph TD
-    A[Incoming Request] --> B[SAPI Entry<br/><i>Swoole / FrankenPHP / FPM</i>]
-    B --> C{Compiled?}
-    C -- No --> D["Boot Phase<br/><i>Compile Routes & Reflect DTOs</i>"]
-    D --> E[Route Match]
-    C -- Yes --> E
-    E --> F["Middleware Chain<br/><i>CORS, Auth, Global Filters</i>"]
-    F --> G["Handler Execution<br/><i>DTO Hydration & Business Logic</i>"]
-    G --> H["Zero-Copy Response<br/><i>Direct to SAPI Buffer</i>"]
-    H --> I[End Request]
+    A[Incoming Request] --> B[Quill Binary Core<br/><i>Rust / C-ABI</i>]
+    B --> C{Match Found?}
+    C -- Yes --> D["FFI Callback<br/><i>PHP Hot Path</i>"]
+    D --> E["Middleware Chain<br/><i>CORS, Auth, Global Filters</i>"]
+    E --> F["Handler Execution<br/><i>DTO Hydration & Business Logic</i>"]
+    F --> G["Binary response<br/><i>Direct to Rust Buffer</i>"]
+    G --> H[End Request]
+    C -- No --> I[Binary 404/405 Response]
 
+    style B fill:#f96,stroke:#333,stroke-width:2px
     style D fill:#f9f,stroke:#333,stroke-width:2px
-    style G fill:#bbf,stroke:#333,stroke-width:2px
-    style H fill:#dfd,stroke:#333,stroke-width:2px
+    style F fill:#bbf,stroke:#333,stroke-width:2px
+    style G fill:#dfd,stroke:#333,stroke-width:2px
 ```
-
----
 
 ---
 
 ## 2. Phase Separation: The Core Optimization
 
-### The Boot Phase (Worker Startup)
-When a worker starts (Swoole or FrankenPHP), or on the first request in FPM:
-1.  **Route Compilation**: The `Router` iterates over all registered routes and compiles them into a `FastRoute` dispatch table.
-2.  **Reflection Caching**: For every handler (Closure or Class method), Quill reflects the parameters and stores a `paramCache` (type hint, dependency type, default values).
-3.  **DTO Discovery**: The `Validator` reflects any DTO classes used in handlers, pre-parsing validation attributes (e.g., `#[Required]`, `#[Email]`) into flat constraint maps.
+### The Boot Phase (Server Startup)
+When the Quill Binary Server starts:
+1.  **Binary Compilation**: The `Router` compiles all registered routes into a native Radix-tree structure within the Rust core.
+2.  **Reflection Caching**: For every handler, Quill reflects parameters and stores a `paramCache` (type hint, dependency type, default values) in PHP memory.
+3.  **Schema Registration**: The `Validator` reflects DTO classes and registers their validation schemas with the native Rust validation engine.
 
 ### The Hot Path (Request Resolution)
-Once the Boot Phase is complete, the per-request cost is minimized:
-- **No `ReflectionClass`** or `ReflectionMethod` calls.
-- **No Service Container** lookups or recursive dependency resolution.
-- **Param Injection**: Arguments are injected into handlers using the pre-calculated `paramCache`.
-- **Zero-Allocation**: If no middleware is present, the framework avoids creating closures or extra pipeline objects.
+Once the Boot Phase is complete, the per-request cost is microsecond-level:
+- **Native Routing**: Routing happens in Rust at O(log n) speed before PHP is even touched.
+- **Native Validation**: JSON body validation occurs in Rust; PHP only receives pre-validated data.
+- **FFI Bridge**: A single C-callback triggers the PHP handler.
+- **Zero-Allocation**: No closures or pipeline objects are created for requests without middleware.
 
 ---
 
 ## 3. High-Performance Components
 
-### Router & RouteMatch
-The `Router` wraps `nikic/fast-route` but adds a metadata layer. When a route is matched, a `RouteMatch` object is returned. This object is responsible for "hydrating" the handler arguments.
-- It detects if a handler needs the `Request` object.
-- It detects if a handler needs a `DTO` and automatically triggers `Validator::validate()`.
-- It casts path variables (e.g., `{id}`) to their hinted types (`int`, `float`, etc.) instantly.
+### Binary Router
+The `Router` doesn't just match strings; it builds a native binary manifest. By offloading routing to Rust, Quill avoids the PHP overhead of regex matching or large array lookups.
 
 ### Pipeline (Middleware)
-QuillPHP uses the "Onion" middleware pattern but includes a **Fast-Path optimization**:
-If `App::use()` has never been called, the `Pipeline` class skips the `array_reduce` stack building entirely and executes the destination handler directly. This saves ~0.5–1.0µs per request.
+QuillPHP uses the "Onion" middleware pattern with a **Fast-Path optimization**:
+If no middleware is registered, the `Pipeline` is bypassed entirely, executing the destination handler directly.
 
-### Validator & DTOs
-Validation in Quill is **Attribute-driven**. 
-- Attributes are instantiated **ONCE** during `Validator::register()`.
-- During the request, the `Validator` simply loops over the pre-instantiated rule objects.
-- This approach is significantly faster than standard PHP validators that parse strings or re-read reflections on every request.
+### Binary Validator & DTOs
+Validation in Quill is **Native-first**. 
+- Rules (e.g., `#[Required]`, `#[Email]`) are compiled into a binary schema.
+- The Rust engine performs SIMD-accelerated JSON parsing and validation.
+- This results in a "fail-fast" architecture where invalid requests never consume PHP worker resources.
 
 ---
 
 ## 4. Operational Excellence
 
-### Zero-Copy Swoole Bridge
-In Swoole mode, QuillPHP bypasses standard PHP output buffering (`ob_start`).
-- It maps the internal `Quill\Response` directly to `\Swoole\Http\Response`.
-- Result arrays are `json_encode`d directly into the Swoole response buffer.
-- This eliminates the memory and CPU overhead of capturing and re-emitting output.
+### Binary Output Stream
+QuillPHP bypasses `ob_start` and standard PHP output buffering.
+- Handlers return data directly to the FFI memory boundary.
+- The Rust core streams the response directly to the socket, eliminating multiple memory copies.
 
 ### Memory & GC Management
-For long-running workers, QuillPHP includes a **GC Throttling** mechanism:
-- Cycles are collected every 500 requests (configurable via `QUILL_GC_INTERVAL`).
-- This prevents memory leaks in complex applications while avoiding the performance hit of per-request garbage collection.
-
-### Error Handling
-Quill provides a unified exception bridge:
-- `ValidationException` is caught at the `App` level and converted to a structured `422` JSON response.
-- In `debug` mode, stack traces are formatted for JSON consumption, ensuring that even fatal errors provide actionable developer feedback without breaking the API client.
+For the long-running Binary Server, QuillPHP includes **GC Throttling**:
+- Cycles are collected periodically (configurable via `QUILL_GC_INTERVAL`).
+- This maintains a stable memory footprint during high-concurrency bursts.
 
 ---
 
 ## 5. Security & Isolation
 
-- **Immutable DTOs**: We recommend using `readonly` properties for DTOs to ensure data integrity through the handler chain.
-- **CORS First-Class**: The `Cors` middleware handles preflight (`OPTIONS`) requests efficiently, often resolving them before they reach the routing layer.
+- **Immutable DTOs**: We recommend `readonly` properties for DTOs to ensure data integrity.
+- **Native CORS**: CORS preflight (`OPTIONS`) is handled in the binary layer for maximum efficiency.
 
 ---
 
 ## 6. Recommended Architecture (ADR & Hexagonal)
 
-QuillPHP strictly enforces a clean architectural separation. Users are encouraged to completely drop MVC abstractions in favor of **Action-Domain-Responder (ADR)** and **Hexagonal Architecture**.
-- **Actions (`handlers/`)**: Purely Invokable classes mapping directly to single operations. Discard multi-method Controllers. 
-- **CQRS Payload (`dtos/`)**: Convert HTTP Requests into typed `Quill\DTO` classes that act as Commands/Queries, validating purely via Attributes.
-- **Domain (`domain/`)**: Completely isolated business logic. Actions dispatch mapped Commands directly to Domain Application Services.
+QuillPHP encourages a clean architectural separation, dropping MVC in favor of **Action-Domain-Responder (ADR)**.
+- **Actions (`handlers/`)**: Invokable classes mapping to single operations.
+- **CQRS Payload (`dtos/`)**: Typed `Quill\Validation\DTO` classes acting as Commands/Queries.
+- **Domain (`domain/`)**: Isolated business logic invoked by Actions.
