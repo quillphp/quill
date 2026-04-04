@@ -154,18 +154,6 @@ class App
             $this->router->addRoute('GET', '/docs/openapi.json', function() {
                 return (new OpenApi())->generate($this->handlers);
             });
-            $this->router->addRoute('GET', '/docs', function() {
-                $file = __DIR__ . '/../public/docs/index.html';
-                if (!file_exists($file)) {
-                    // Fallback for development if public/ is not in the same spot
-                    $file = dirname(__DIR__) . '/public/docs/index.html';
-                }
-                if (!file_exists($file)) {
-                    return new HttpResponse(['error' => 'Docs UI not found at ' . $file], 404);
-                }
-                $content = file_get_contents($file);
-                return new HtmlResponse(is_string($content) ? $content : '');
-            });
         }
  
         if ($this->router !== null) {
