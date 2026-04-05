@@ -32,10 +32,22 @@ final class Server
 
     private DriverInterface $driver;
 
-    public function __construct(Router $router, ?DriverInterface $driver = null)
-    {
-        $this->router = $router;
-        $this->driver = $driver ?: Runtime::getDriver();
+    protected ?\Psr\Log\LoggerInterface $logger;
+    protected int $dtoBufferSize;
+    protected int $errorBufferSize;
+
+    public function __construct(
+        Router $router,
+        ?DriverInterface $driver = null,
+        ?\Psr\Log\LoggerInterface $logger = null,
+        int $dtoBufferSize = 65536,
+        int $errorBufferSize = 4096
+    ) {
+        $this->router          = $router;
+        $this->driver          = $driver ?: Runtime::getDriver();
+        $this->logger          = $logger;
+        $this->dtoBufferSize   = $dtoBufferSize;
+        $this->errorBufferSize = $errorBufferSize;
     }
 
     // ── Public entry-point ────────────────────────────────────────────────────
@@ -211,13 +223,13 @@ final class Server
         // Pre-allocate FFI buffers once — reused for every request.
         $idBuf        = $this->driver->allocateIdBuffer();
         $handlerIdBuf = $this->driver->allocateHandlerIdBuffer();
-        $paramsBuf    = $this->driver->allocateParamsBuffer(4096);
-        $dtoBuf       = $this->driver->allocateDtoBuffer(65536);
+        $paramsBuf    = $this->driver->allocateParamsBuffer($this->errorBufferSize);
+        $dtoBuf       = $this->driver->allocateDtoBuffer($this->dtoBufferSize);
 
         $id = 0;
         while ($this->running) {
             /** @phpstan-ignore-next-line */
-            $hasRequest = $this->driver->poll($idBuf, $handlerIdBuf, $paramsBuf, 4096, $dtoBuf, 65536);
+            $hasRequest = $this->driver->poll($idBuf, $handlerIdBuf, $paramsBuf, $this->errorBufferSize, $dtoBuf, $this->dtoBufferSize);
 
             if ($hasRequest === 1) {
                 try {
@@ -251,15 +263,33 @@ final class Server
                         $dtoData
                     );
 
-                    $result = $routeMatch->execute($request);
+                    ob_start();
+                    try {
+                        $result = $routeMatch->execute($request);
+                        $bodyContent = ob_get_clean();
+                    } catch (\Throwable $e) {
+                        ob_end_clean();
+                        throw $e;
+                    }
+
+                    $status  = 200;
+                    $headers = [
+                        'Content-Type' => 'application/json',
+                        'X-Powered-By' => 'Quill',
+                    ];
+
+                    if ($result instanceof \Quill\Http\Response) {
+                        $status  = $result->getStatus();
+                        $headers = array_merge($headers, $result->getHeaders());
+                        $resultBody = (string)$bodyContent;
+                    } else {
+                        $resultBody = (string)json_encode($result ?? []);
+                    }
 
                     $response = [
-                        'status'  => 200,
-                        'headers' => [
-                            'Content-Type' => 'application/json',
-                            'X-Powered-By' => 'Quill',
-                        ],
-                        'body' => (string)json_encode($result ?? []),
+                        'status'  => $status,
+                        'headers' => $headers,
+                        'body'    => $resultBody,
                     ];
 
                     $json = Json::encode($response);

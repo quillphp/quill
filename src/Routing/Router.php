@@ -182,9 +182,9 @@ class Router
 
         $res = $this->match($method, $path);
 
-        if ($res['status'] === 1) { // Found
+        if ($res['status'] === RouterStatus::FOUND) { // Found
             /** @var array{int, callable|array<string>, array<string, string>} $info */
-            $info = [1, $this->routes[$res['handler_id']][2], $res['params']];
+            $info = [RouterStatus::FOUND, $this->routes[$res['handler_id']][2], $res['params']];
             return new RouteMatch(
                 $info,
                 $this->paramCache,
@@ -193,15 +193,15 @@ class Router
             );
         }
 
-        if ($res['status'] === 2) { // Not Found
-            return new RouteMatch([0, [], []], $this->paramCache, $this->instanceCache, $this->container);
+        if ($res['status'] === RouterStatus::NOT_FOUND) { // Not Found
+            return new RouteMatch([RouterStatus::NOT_FOUND, [], []], $this->paramCache, $this->instanceCache, $this->container);
         }
 
-        if ($res['status'] === 3) { // Method Not Allowed
-            return new RouteMatch([2, [], []], $this->paramCache, $this->instanceCache, $this->container);
+        if ($res['status'] === RouterStatus::METHOD_NOT_ALLOWED) { // Method Not Allowed
+            return new RouteMatch([RouterStatus::METHOD_NOT_ALLOWED, [], []], $this->paramCache, $this->instanceCache, $this->container);
         }
 
-        return new RouteMatch([0, [], []], $this->paramCache, $this->instanceCache, $this->container);
+        return new RouteMatch([RouterStatus::NOT_FOUND, [], []], $this->paramCache, $this->instanceCache, $this->container);
     }
 
     /**
@@ -214,8 +214,9 @@ class Router
         $numParams    = $ffi->new('uint32_t[1]');
         $paramsJson   = $ffi->new('char[2048]');
         
+        $res = 0;
         /** @phpstan-ignore-next-line */
-        $res = $ffi->quill_router_match(
+        $res = (int)$ffi->quill_router_match(
             $this->handle,
             $method, strlen($method),
             $path, strlen($path),
@@ -225,21 +226,20 @@ class Router
         );
 
         if ($res === 1) { // Not Found
-            return ['status' => 2, 'handler_id' => 0, 'params' => []];
+            return ['status' => RouterStatus::NOT_FOUND, 'handler_id' => 0, 'params' => []];
         }
 
         if ($res === 2) { // Method Not Allowed
-            return ['status' => 3, 'handler_id' => 0, 'params' => []];
+            return ['status' => RouterStatus::METHOD_NOT_ALLOWED, 'handler_id' => 0, 'params' => []];
         }
 
         /** @var array<string, string> $params */
-        /** @var \FFI\CData $paramsJson */
-        $params = ($numParams instanceof \FFI\CData && (int)$numParams[0] > 0)
+        $params = ($numParams instanceof \FFI\CData && (int)$numParams[0] > 0 && $paramsJson instanceof \FFI\CData)
             ? json_decode(\FFI::string($paramsJson), true, 512, JSON_THROW_ON_ERROR)
             : [];
 
         return [
-            'status'     => 1, // Found
+            'status'     => RouterStatus::FOUND,
             'handler_id' => $handlerId instanceof \FFI\CData ? (int)$handlerId[0] : 0,
             'params'     => $params,
         ];

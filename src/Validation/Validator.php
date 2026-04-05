@@ -19,6 +19,16 @@ class Validator
     /** @var \FFI\CData|null Pointer to the native validation registry */
     private static ?\FFI\CData $handle = null;
 
+    private static int $errorBufferSize = 4096;
+
+    /**
+     * Set the buffer size for validation errors.
+     */
+    public static function setBufferSize(int $size): void
+    {
+        self::$errorBufferSize = $size;
+    }
+
     /**
      * Reflect a DTO class and cache its metadata.
      * Paid ONCE at boot.
@@ -94,24 +104,28 @@ class Validator
         $registry = self::getRegistry();
         
         /** @var \FFI\CData $outBuf */
-        $outBuf   = $ffi->new('char[4096]');
+        $outBuf   = $ffi->new("char[" . self::$errorBufferSize . "]");
         
         /** @phpstan-ignore-next-line */
         $res = $ffi->quill_validator_validate(
             $registry, 
             $dtoClass, strlen($dtoClass), 
             $json, strlen($json), 
-            $outBuf, 4096
+            $outBuf, self::$errorBufferSize
         );
 
-        if ($res === 1) { // Validation Error
+        if ($res === ValidationStatus::VALIDATION_ERROR) { // Validation Error
+            /** @var \FFI\CData $outBuf */
             $errorJson = \FFI::string($outBuf);
+            if (strlen($errorJson) >= self::$errorBufferSize - 1) {
+                fwrite(STDERR, "[Validator] Warning: Validation error message may have been truncated (buffer size: " . self::$errorBufferSize . ")\n");
+            }
             /** @var array<string, array<string>> $errors */
             $errors    = json_decode($errorJson, true, 512, JSON_THROW_ON_ERROR);
             throw new ValidationException($errors);
         }
 
-        if ($res === 2) { // System Error
+        if ($res === ValidationStatus::SYSTEM_ERROR) { // System Error
              throw new \RuntimeException("Quill Validation Engine System Error");
         }
 
