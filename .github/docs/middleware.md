@@ -60,7 +60,7 @@ Adds `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, and `Permis
 ```php
 use Quill\Middleware\RateLimiter;
 
-$app->use(new RateLimiter(maxRequests: 100, windowSeconds: 60));
+$app->use(RateLimiter::withMemory(limit: 100, window: 60));
 ```
 
 ---

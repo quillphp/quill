@@ -35,6 +35,14 @@ class RateLimiter
         $this->keyResolver = $keyResolver;
     }
 
+    /**
+     * Named factory for in-memory storage (most common).
+     */
+    public static function withMemory(int $limit = 60, int $window = 60): self
+    {
+        return new self(new InMemoryRateLimitStorage(), $limit, $window);
+    }
+
     public function __invoke(Request $request, callable $next): mixed
     {
         return $this->handle($request, $next);
