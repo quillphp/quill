@@ -36,7 +36,7 @@ final class Json
             return $input;
         }
 
-        return \FFI::string($outBuf, (int)$written);
+        return \FFI::string($outBuf, max(0, (int)$written));
     }
 
     /**

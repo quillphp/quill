@@ -7,6 +7,7 @@ namespace Quill\Tests;
 use PHPUnit\Framework\TestCase;
 use Quill\Cache\FileCache;
 use Quill\Cache\ApcuCache;
+use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 
 class CacheTest extends TestCase
 {
@@ -46,9 +47,7 @@ class CacheTest extends TestCase
         $this->assertNull($cache->get('hits'));
     }
 
-    /**
-     * @requires extension apcu
-     */
+    #[RequiresPhpExtension('apcu')]
     public function testApcuCacheBasics(): void
     {
         if (!function_exists('apcu_store') || !ini_get('apc.enabled')) {

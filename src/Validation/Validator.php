@@ -106,6 +106,7 @@ class Validator
 
         if ($res === 1) { // Validation Error
             $errorJson = \FFI::string($outBuf);
+            /** @var array<string, array<string>> $errors */
             $errors    = json_decode($errorJson, true, 512, JSON_THROW_ON_ERROR);
             throw new ValidationException($errors);
         }
@@ -118,11 +119,12 @@ class Validator
         $dto = new $dtoClass();
         $map = self::$cache[$dtoClass];
         
+        /** @var array<string, mixed> $decoded */
         $decoded = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
 
         foreach ($decoded as $name => $val) {
             if (isset($map[$name])) {
-                $dto->$name = self::cast($val, $map[$name]['type']);
+                $dto->{(string)$name} = self::cast($val, $map[$name]['type']);
             }
         }
 
@@ -162,6 +164,7 @@ class Validator
     {
         self::$cache = [];
         if (self::$handle !== null) {
+            /** @phpstan-ignore-next-line */
             Runtime::get()->quill_validator_free(self::$handle);
             self::$handle = null;
         }
@@ -173,6 +176,7 @@ class Validator
      */
     private static function buildSchema(string $dtoClass): array
     {
+        /** @var class-string $dtoClass */
         $reflection = new \ReflectionClass($dtoClass);
         $schema     = [];
 

@@ -78,9 +78,9 @@ class Router
     private function buildParamCache(): void
     {
         foreach ($this->routes as [$method, $path, $handler]) {
-            if (is_array($handler) && count($handler) === 2) {
-                $class = (string)($handler[0] ?? '');
-                $methodName = (string)($handler[1] ?? '');
+            if (is_array($handler) && count($handler) === 2 && isset($handler[0], $handler[1]) && is_scalar($handler[0]) && is_scalar($handler[1])) {
+                $class = (string)$handler[0];
+                $methodName = (string)$handler[1];
                 $key = "$class::$methodName";
                 if (!isset($this->paramCache[$key])) {
                     $reflection = new \ReflectionMethod($class, $methodName);
@@ -96,6 +96,9 @@ class Router
         }
     }
 
+    /**
+     * @return array<int, array{name: string, type: ?string, isBuiltin: bool, isDTO: bool, isRequest: bool, hasDefault: bool, defaultValue: mixed}>
+     */
     private function reflectParams(\ReflectionFunctionAbstract $reflection): array
     {
         $map = [];
@@ -125,7 +128,7 @@ class Router
 
     private function getHandlerKey(mixed $handler): ?string
     {
-        if (is_array($handler) && count($handler) === 2) {
+        if (is_array($handler) && count($handler) === 2 && isset($handler[0], $handler[1]) && is_scalar($handler[0]) && is_scalar($handler[1])) {
             return "{$handler[0]}::{$handler[1]}";
         } elseif ($handler instanceof \Closure) {
             return 'closure_' . spl_object_id($handler);
@@ -133,6 +136,9 @@ class Router
         return null;
     }
 
+    /**
+     * @return array<int, array{method: string, pattern: string, handler_id: int, dto_class: ?string}>
+     */
     private function buildManifest(): array
     {
         $manifest = [];
@@ -159,8 +165,11 @@ class Router
         return $manifest;
     }
 
+    /** @return array<int, array{string, string, callable|array<string>}> */
     public function getRoutes(): array { return $this->routes; }
+    /** @return array<string, array<int, array{name: string, type: ?string, isBuiltin: bool, isDTO: bool, isRequest: bool, hasDefault: bool, defaultValue: mixed}>> */
     public function getParamCache(): array { return $this->paramCache; }
+    /** @return array<string, object> */
     public function getInstanceCache(): array { return $this->instanceCache; }
     public function getContainer(): ?ContainerInterface { return $this->container; }
     public function getHandle(): ?\FFI\CData { return $this->handle; }
@@ -174,8 +183,10 @@ class Router
         $res = $this->match($method, $path);
 
         if ($res['status'] === 1) { // Found
+            /** @var array{int, callable|array<string>, array<string, string>} $info */
+            $info = [1, $this->routes[$res['handler_id']][2], $res['params']];
             return new RouteMatch(
-                [1, $this->routes[$res['handler_id']][2], $res['params']],
+                $info,
                 $this->paramCache,
                 $this->instanceCache,
                 $this->container
@@ -183,14 +194,14 @@ class Router
         }
 
         if ($res['status'] === 2) { // Not Found
-            return new RouteMatch([0], $this->paramCache, $this->instanceCache, $this->container);
+            return new RouteMatch([0, [], []], $this->paramCache, $this->instanceCache, $this->container);
         }
 
         if ($res['status'] === 3) { // Method Not Allowed
-            return new RouteMatch([2, []], $this->paramCache, $this->instanceCache, $this->container);
+            return new RouteMatch([2, [], []], $this->paramCache, $this->instanceCache, $this->container);
         }
 
-        return new RouteMatch([0], $this->paramCache, $this->instanceCache, $this->container);
+        return new RouteMatch([0, [], []], $this->paramCache, $this->instanceCache, $this->container);
     }
 
     /**
@@ -208,7 +219,9 @@ class Router
             $this->handle,
             $method, strlen($method),
             $path, strlen($path),
+            /** @phpstan-ignore-next-line */
             \FFI::addr($handlerId),
+            /** @phpstan-ignore-next-line */
             \FFI::addr($numParams),
             $paramsJson, 2048
         );
@@ -221,13 +234,15 @@ class Router
             return ['status' => 3, 'handler_id' => 0, 'params' => []];
         }
 
-        $params = $numParams->cdata > 0 
+        /** @var array<string, string> $params */
+        /** @var \FFI\CData $paramsJson */
+        $params = ($numParams instanceof \FFI\CData && (int)$numParams[0] > 0)
             ? json_decode(\FFI::string($paramsJson), true, 512, JSON_THROW_ON_ERROR)
             : [];
 
         return [
             'status'     => 1, // Found
-            'handler_id' => (int)$handlerId->cdata,
+            'handler_id' => $handlerId instanceof \FFI\CData ? (int)$handlerId[0] : 0,
             'params'     => $params,
         ];
     }
@@ -235,8 +250,9 @@ class Router
     public function __destruct()
     {
         if ($this->handle !== null) {
+            $ffi = Runtime::get();
             /** @phpstan-ignore-next-line */
-            Runtime::get()->quill_router_free($this->handle);
+            $ffi->quill_router_free($this->handle);
             $this->handle = null;
         }
     }

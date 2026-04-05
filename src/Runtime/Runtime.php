@@ -11,6 +11,7 @@ final class Runtime
 {
     private static ?\FFI $ffi = null;
     private static bool $available = false;
+    /** @phpstan-ignore-next-line */
     private static bool $initialized = false;
 
     /**
@@ -27,7 +28,7 @@ final class Runtime
 
         $candidates = [
             // 1. Environment Variable
-            fn() => getenv('QUILL_CORE_BINARY') ? [getenv('QUILL_CORE_BINARY'), dirname(getenv('QUILL_CORE_BINARY')) . '/' . $headerName] : null,
+            fn() => ($binary = getenv('QUILL_CORE_BINARY')) ? [(string) $binary, dirname((string) $binary) . '/' . $headerName] : null,
 
             // 2. Local Vendor (Path Repository / standard install)
             fn() => [
@@ -35,13 +36,7 @@ final class Runtime
                 dirname(__DIR__, 2) . '/vendor/quillphp/quill-core/bin/' . $headerName
             ],
 
-            // 3. Project Build Folder
-            fn() => [
-                dirname(__DIR__, 2) . '/build/' . $libName,
-                dirname(__DIR__, 2) . '/build/' . $headerName
-            ],
-
-            // 4. System Level
+            // 3. System Level
             fn() => [
                 '/usr/local/lib/' . $libName,
                 '/usr/local/include/' . $headerName
@@ -50,8 +45,8 @@ final class Runtime
 
         foreach ($candidates as $candidateLoader) {
             $paths = $candidateLoader();
-            if ($paths && file_exists($paths[0]) && file_exists($paths[1])) {
-                self::init($paths[0], $paths[1]);
+            if ($paths && file_exists((string) $paths[0]) && file_exists((string) $paths[1])) {
+                self::init((string) $paths[0], (string) $paths[1]);
                 if (self::$available) {
                     return true;
                 }

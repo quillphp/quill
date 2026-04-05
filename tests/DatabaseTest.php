@@ -8,12 +8,11 @@ use PHPUnit\Framework\TestCase;
 use Quill\Database\EloquentBridge;
 use Quill\Database\DoctrineBridge;
 use Quill\App;
+use PHPUnit\Framework\Attributes\RequiresPhp;
 
 class DatabaseTest extends TestCase
 {
-    /**
-     * @requires PHP 8.3
-     */
+    #[RequiresPhp('8.3')]
     public function testEloquentBridgeBoot(): void
     {
         if (!class_exists('Illuminate\Database\Capsule\Manager')) {

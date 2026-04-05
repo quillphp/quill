@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Quill\Tests\Unit\Runtime;
 
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\Test;
 use Quill\Runtime\Runtime;
 
 class RuntimeTest extends TestCase
@@ -14,7 +15,7 @@ class RuntimeTest extends TestCase
         Runtime::reset();
     }
 
-    /** @test */
+    #[Test]
     public function it_loads_available_ffi_with_valid_lib(): void
     {
         if (!extension_loaded('ffi')) {
@@ -32,7 +33,7 @@ class RuntimeTest extends TestCase
         $this->assertTrue(Runtime::isAvailable());
     }
 
-    /** @test */
+    #[Test]
     public function it_fails_gracefully_with_missing_lib(): void
     {
         Runtime::init(

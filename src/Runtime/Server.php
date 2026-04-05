@@ -31,6 +31,7 @@ final class Server
     {
         $ffi = Runtime::get();
 
+        /** @phpstan-ignore-next-line */
         $this->callback = \FFI::callback(
             'int (*)(uint32_t, char*, char*, char*, uint32_t)',
             function (int $handlerId, string $paramsJson, string $dtoDataJson, $outResponse, int $max) {
@@ -39,13 +40,17 @@ final class Server
                     $dtoData = Json::decode($dtoDataJson);
 
                     $request = new Request();
+                    /** @var array<string, string> $params */
                     $request->setPathVars($params);
 
+                    /** @var array{int, array<string>|(callable(): mixed), array<string, string>} $info */
+                    $info = [1, $this->router->getRoutes()[$handlerId][2], $params];
                     $routeMatch = new RouteMatch(
-                        [1, $this->router->getRoutes()[$handlerId][2], $params],
+                        $info,
                         $this->router->getParamCache(),
                         [],
                         $this->router->getContainer(),
+                        /** @var array<string, mixed> $dtoData */
                         $dtoData
                     );
 

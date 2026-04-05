@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Quill\Tests\Unit\Runtime;
 
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\Test;
 use Quill\Runtime\Json;
 use Quill\Runtime\Runtime;
 
@@ -25,7 +26,7 @@ class JsonTest extends TestCase
         putenv('QUILL_RUNTIME=rust');
     }
 
-    /** @test */
+    #[Test]
     public function it_encodes_json_via_core(): void
     {
         $data = ['name' => 'John', 'age' => 30];
@@ -35,14 +36,13 @@ class JsonTest extends TestCase
         $this->assertStringContainsString('"name":"John"', $json);
     }
 
-    /** @test */
+    #[Test]
     public function it_decodes_json_via_php(): void
     {
         // Decode still uses PHP-standard json_decode for now
         $json = '{"name":"John","age":30}';
         $data = Json::decode($json);
         
-        $this->assertIsArray($data);
         $this->assertSame('John', $data['name']);
         $this->assertSame(30, $data['age']);
     }

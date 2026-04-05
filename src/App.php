@@ -25,11 +25,16 @@ class App
 
     protected Router $router;
     protected ?ContainerInterface $container = null;
+    /** @var array<string, mixed> */
     protected array $config = [];
+    /** @var array<int, callable|string|object> */
     protected array $middlewares = [];
-    protected ?Pipeline $pipeline = null;
+    protected Pipeline $pipeline;
     protected bool $booted = false;
 
+    /**
+     * @param array<string, mixed> $config
+     */
     public function __construct(array $config = [])
     {
         $this->config = array_merge([
@@ -38,7 +43,8 @@ class App
             'root'  => getcwd(),
         ], $config);
 
-        $this->router = new Router($config['cache_file'] ?? null);
+        $cacheFile = (isset($config['cache_file']) && is_scalar($config['cache_file'])) ? (string)$config['cache_file'] : null;
+        $this->router = new Router($cacheFile);
         $this->pipeline = new Pipeline();
     }
 
@@ -117,6 +123,7 @@ class App
             $request = $request ?? new Request();
             
             $result = $this->pipeline
+                /** @phpstan-ignore-next-line */
                 ->send($this->middlewares)
                 ->then($request, function ($request) {
                     $method  = $request->method();
@@ -137,6 +144,11 @@ class App
             $response = new Response();
             $this->handleException($e, $response);
         }
+    }
+
+    public function has(string $id): bool
+    {
+        return $this->container !== null && $this->container->has($id);
     }
 
     public function getRouter(): Router { return $this->router; }

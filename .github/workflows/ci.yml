@@ -31,11 +31,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Build Quill Core
+        uses: actions/checkout@v4
+        with:
+          repository: quillphp/quill-core
+          path: quill-core
+
+      - name: Build Quill Core
+        run: |
+          cd quill-core
+          cargo build --release
+          echo "QUILL_CORE_BINARY=$(pwd)/target/release/libquill.so" >> $GITHUB_ENV
+
       - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
-          extensions: mbstring, openssl, opcache
-          ini-values: opcache.enable_cli=1
+          extensions: mbstring, openssl, opcache, apcu
+          ini-values: opcache.enable_cli=1, apc.enable_cli=1
           coverage: none
 
       - uses: actions/cache@v4
@@ -60,7 +72,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
-          extensions: mbstring, openssl
+          extensions: mbstring, openssl, apcu
           coverage: none
 
       - uses: actions/cache@v4

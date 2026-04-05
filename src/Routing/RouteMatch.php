@@ -42,9 +42,9 @@ class RouteMatch
         ?ContainerInterface $container = null,
         ?array $ffiData = null
     ) {
-        $this->status        = (int)($info[0] ?? 0);
-        $this->handler       = $info[1] ?? null;
-        $this->params        = $info[2] ?? [];
+        $this->status        = $info[0];
+        $this->handler       = $info[1];
+        $this->params        = $info[2];
         $this->paramCache    = $paramCache;
         $this->instanceCache = $instanceCache;
         $this->container     = $container;
@@ -69,6 +69,7 @@ class RouteMatch
         return (array)($this->handler ?? []);
     }
 
+    /** @return array<string, string> */
     public function getParams(): array
     {
         return $this->params;
@@ -87,10 +88,10 @@ class RouteMatch
         $handler = $this->handler;
         $key     = '';
 
-        if (is_array($handler)) {
-            $class = $handler[0];
-            $method = $handler[1];
-            $key = "$class::$method";
+        if (is_array($handler) && isset($handler[0], $handler[1])) {
+            $class  = is_scalar($handler[0]) ? (string)$handler[0] : '';
+            $method = is_scalar($handler[1]) ? (string)$handler[1] : '';
+            $key    = "$class::$method";
 
             if ($this->container && $this->container->has($class)) {
                 $instance = $this->container->get($class);
@@ -181,10 +182,10 @@ class RouteMatch
     private function cast(mixed $value, string $type): mixed
     {
         return match ($type) {
-            'int'    => (int)$value,
-            'float'  => (float)$value,
+            'int'    => is_scalar($value) ? (int)$value : 0,
+            'float'  => is_scalar($value) ? (float)$value : 0.0,
             'bool'   => filter_var($value, FILTER_VALIDATE_BOOLEAN),
-            'string' => (string)$value,
+            'string' => is_scalar($value) ? (string)$value : '',
             default  => $value,
         };
     }

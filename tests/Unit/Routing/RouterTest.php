@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Quill\Tests\Unit\Routing;
 
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\Test;
 use Quill\Runtime\Runtime;
 use Quill\Routing\Router;
 use Quill\Routing\RouteMatch;
@@ -29,7 +30,7 @@ class RouterTest extends TestCase
         putenv('QUILL_RUNTIME=rust');
     }
 
-    /** @test */
+    #[Test]
     public function it_can_register_and_dispatch_routes_via_core(): void
     {
         $router = new Router();
@@ -43,7 +44,7 @@ class RouterTest extends TestCase
         $this->assertSame('456', $match->getParams()['id']);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_not_found_via_core(): void
     {
         $router = new Router();
@@ -55,7 +56,7 @@ class RouterTest extends TestCase
         $this->assertFalse($match->isFound());
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_method_not_allowed_via_core(): void
     {
         $router = new Router();

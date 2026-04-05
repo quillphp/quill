@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Quill\Tests\Unit\Validation;
 
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\Test;
 use Quill\Runtime\Runtime;
 use Quill\Validation\Validator;
 use Quill\Validation\DTO;
@@ -39,7 +40,7 @@ class ValidatorTest extends TestCase
         putenv('QUILL_RUNTIME=rust');
     }
 
-    /** @test */
+    #[Test]
     public function it_validates_and_hydrates_dto_via_core(): void
     {
         $json = (string)json_encode([
@@ -56,7 +57,7 @@ class ValidatorTest extends TestCase
         $this->assertSame(30, $dto->age);
     }
 
-    /** @test */
+    #[Test]
     public function it_throws_exception_on_invalid_data_via_core(): void
     {
         $json = (string)json_encode([
