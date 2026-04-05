@@ -31,6 +31,7 @@ final class Server
     {
         $ffi = Runtime::get();
 
+        /** @phpstan-ignore-next-line */
         if (!method_exists(\FFI::class, 'callback')) {
             throw new \RuntimeException(sprintf(
                 "FFI::callback() is not available in this PHP environment. Registered FFI methods: %s. FFI Enabled: %s",
