@@ -178,6 +178,7 @@ class Validator
         }
 
         // Remember which DTO classes were already reflected so we can re-register them.
+        /** @var list<class-string> $cachedClasses */
         $cachedClasses = array_keys(self::$cache);
         // Clear the cache so register() treats each class as new.
         self::$cache = [];

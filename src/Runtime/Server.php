@@ -173,13 +173,13 @@ final class Server
         echo '[Worker ' . getmypid() . "] listening on http://0.0.0.0:{$this->port}\n";
 
         // Pre-allocate FFI buffers once — reused for every request.
-        /** @phpstan-ignore-next-line */
+        /** @var \FFI\CData $idBuf */
         $idBuf        = $ffi->new('uint32_t[1]');
-        /** @phpstan-ignore-next-line */
+        /** @var \FFI\CData $handlerIdBuf */
         $handlerIdBuf = $ffi->new('uint32_t[1]');
-        /** @phpstan-ignore-next-line */
+        /** @var \FFI\CData $paramsBuf */
         $paramsBuf    = $ffi->new('char[4096]');
-        /** @phpstan-ignore-next-line */
+        /** @var \FFI\CData $dtoBuf */
         $dtoBuf       = $ffi->new('char[65536]');
 
         while ($this->running) {
