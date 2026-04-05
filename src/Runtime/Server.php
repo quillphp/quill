@@ -61,7 +61,12 @@ final class Server
             $this->spawnWorkers($nWorkers);
         } else {
             $this->setupSignals([]);
-            $this->bootWorker();
+            try {
+                $this->bootWorker();
+            } catch (\Throwable $e) {
+                fwrite(STDERR, "[Worker " . getmypid() . "] Boot failed: {$e->getMessage()}\n");
+                exit(1);
+            }
             $this->runEventLoop();
         }
     }
@@ -87,9 +92,17 @@ final class Server
 
             if ($pid === 0) {
                 // ── Child process ─────────────────────────────────────────────
-                // Reset signal handlers inherited from parent, then boot.
-                $this->setupSignals([]);
-                $this->bootWorker();
+                // Block signals until Rust heap is owned by this process
+                pcntl_sigprocmask(SIG_BLOCK, [SIGTERM, SIGINT]);
+                try {
+                    $this->setupSignals([]);
+                    $this->bootWorker();
+                } catch (\Throwable $e) {
+                    fwrite(STDERR, "[Worker " . getmypid() . "] Boot failed: {$e->getMessage()}\n");
+                    exit(1);
+                }
+                pcntl_sigprocmask(SIG_UNBLOCK, [SIGTERM, SIGINT]);
+
                 $this->runEventLoop();
                 exit(0);
             }
@@ -99,7 +112,16 @@ final class Server
 
         // ── Parent process ────────────────────────────────────────────────────
         $this->setupSignals($pids);
-        $this->bootWorker();
+        try {
+            $this->bootWorker();
+        } catch (\Throwable $e) {
+            fwrite(STDERR, "[Worker " . getmypid() . "] Boot failed: {$e->getMessage()}\n");
+            // Kill children before exiting
+            foreach ($pids as $pid) {
+                posix_kill($pid, SIGTERM);
+            }
+            exit(1);
+        }
         $this->runEventLoop();
 
         // Reap any remaining children after the parent's loop exits.
