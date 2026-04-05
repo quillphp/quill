@@ -19,6 +19,17 @@ on:
     branches: [main]
 
 jobs:
+  pr-linter:
+    name: PR Content Linter
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR Checklist
+        uses: davideviolante/pr-checklist-checker@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          at-least-one-checked: 'true'
+
   test:
     name: Tests (Pest) — PHP ${{ matrix.php }}
     runs-on: ubuntu-latest
