@@ -35,6 +35,15 @@ class Response
     }
 
     /**
+     * Get the response headers.
+     * @return array<string, string>
+     */
+    public function getHeaders(): array
+    {
+        return $this->headers;
+    }
+
+    /**
      * Total bytes written to output by this response.
      */
     public function getBytesSent(): int

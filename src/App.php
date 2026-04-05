@@ -101,7 +101,14 @@ class App
         $port = (int)(getenv('QUILL_PORT') ?: 8080);
         $this->router->compile();
         
-        $server = new Server($this->router);
+        $dtoBufferSize = (isset($this->config['ffi_dto_buffer_size']) && is_numeric($this->config['ffi_dto_buffer_size'])) 
+            ? (int)$this->config['ffi_dto_buffer_size'] 
+            : 65536;
+        $errorBufferSize = (isset($this->config['ffi_error_buffer_size']) && is_numeric($this->config['ffi_error_buffer_size'])) 
+            ? (int)$this->config['ffi_error_buffer_size'] 
+            : 4096;
+
+        $server = new Server($this->router, null, null, $dtoBufferSize, $errorBufferSize);
         $server->start($port);
     }
 

@@ -53,12 +53,12 @@ class RouteMatch
 
     public function isFound(): bool
     {
-        return $this->status === 1; // Dispatcher::FOUND
+        return $this->status === RouterStatus::FOUND;
     }
 
     public function isMethodNotAllowed(): bool
     {
-        return $this->status === 2; // Dispatcher::METHOD_NOT_ALLOWED
+        return $this->status === RouterStatus::METHOD_NOT_ALLOWED;
     }
 
     /**
