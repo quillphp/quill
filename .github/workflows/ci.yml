@@ -158,9 +158,12 @@ jobs:
           curl -fsSL "https://raw.githubusercontent.com/quillphp/quill-core/${VERSION}/quill.h" -o bin/quill.h
           echo "QUILL_CORE_BINARY=$(pwd)/bin/libquill.so" >> $GITHUB_ENV
           echo "QUILL_CORE_HEADER=$(pwd)/bin/quill.h" >> $GITHUB_ENV
+          echo "QUILL_CORE_VERSION=${VERSION}" >> $GITHUB_ENV
 
       - name: Run Benchmark
-        run: composer bench | tee benchmark_results.txt
+        run: |
+          echo "BENCH_WORKERS=${THREADS}" >> $GITHUB_ENV
+          composer bench | tee benchmark_results.txt
         env:
           DURATION: 5
           THREADS: 2
@@ -175,7 +178,7 @@ jobs:
             const data = fs.readFileSync('benchmark_results.txt', 'utf8');
             const results = data.replace(/\u001b\[[0-9;]*m/g, '');
             const marker = "### 🚀 Quill Performance Metrics";
-            const newContent = `${marker}\n\n**Environment**: Ubuntu (Fallback SocketServer)\n\n\`\`\`text\n${results}\n\`\`\``;
+            const newContent = `${marker}\n\n**Environment**: Ubuntu · PHP ${{ matrix.php }} · quill-core \`${{ env.QUILL_CORE_VERSION }}\` · ${{ env.BENCH_WORKERS }} workers Quill Core\n\n\`\`\`text\n${results}\n\`\`\``;
             
             const body = context.payload.pull_request.body || "";
             if (body.includes(marker)) {
