@@ -25,7 +25,7 @@ jobs:
   pr-linter:
     name: PR Content Linter
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Check PR Checklist Content
         uses: actions/github-script@v7
@@ -61,7 +61,7 @@ jobs:
 
   test:
     name: Tests (Pest) — PHP ${{ matrix.php }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     strategy:
       fail-fast: false
@@ -87,24 +87,21 @@ jobs:
       - name: Install dependencies
         run: composer update --prefer-dist --no-progress --no-interaction
 
-      - name: Debug FFI Environment
+      - name: Setup Native Core Binary
         run: |
-          php -r "echo 'FFI Class Methods: '; var_dump(get_class_methods('FFI')); echo 'FFI Config: '; var_dump(ini_get('ffi.enable'));"
-
-      - name: Build Native Core from Vendor
-        run: |
-          cd vendor/quillphp/quill-core
-          cargo build --release
-          echo "QUILL_CORE_BINARY=$(pwd)/target/release/libquill_core.so" >> $GITHUB_ENV
-          echo "QUILL_CORE_HEADER=$(pwd)/quill.h" >> $GITHUB_ENV
-          ls -R .
+          mkdir -p bin
+          VERSION="0.0.1"
+          curl -L "https://github.com/quillphp/quill-core/releases/download/${VERSION}/libquill.so" -o bin/libquill.so
+          curl -L "https://raw.githubusercontent.com/quillphp/quill-core/${VERSION}/quill.h" -o bin/quill.h
+          echo "QUILL_CORE_BINARY=$(pwd)/bin/libquill.so" >> $GITHUB_ENV
+          echo "QUILL_CORE_HEADER=$(pwd)/bin/quill.h" >> $GITHUB_ENV
 
       - name: Run Tests (Pest)
         run: vendor/bin/pest --no-coverage
 
   phpstan:
     name: PHPStan (level 9)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - uses: actions/checkout@v4
@@ -124,16 +121,12 @@ jobs:
       - name: Install dependencies
         run: composer update --prefer-dist --no-progress --no-interaction
 
-      - name: Debug FFI Environment
-        run: |
-          php -r "echo 'FFI Class Methods: '; var_dump(get_class_methods('FFI')); echo 'FFI Config: '; var_dump(ini_get('ffi.enable'));"
-
       - name: Run PHPStan
         run: vendor/bin/phpstan analyse --no-progress
 
   benchmark:
     name: Benchmark — PHP ${{ matrix.php }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: test
     strategy:
       matrix:
@@ -155,16 +148,14 @@ jobs:
       - name: Install dependencies
         run: composer update --prefer-dist --no-progress --no-interaction
 
-      - name: Debug FFI Environment
+      - name: Setup Native Core Binary
         run: |
-          php -r "echo 'FFI Class Methods: '; var_dump(get_class_methods('FFI')); echo 'FFI Config: '; var_dump(ini_get('ffi.enable'));"
-
-      - name: Build Native Core from Vendor
-        run: |
-          cd vendor/quillphp/quill-core
-          cargo build --release
-          echo "QUILL_CORE_BINARY=$(pwd)/target/release/libquill_core.so" >> $GITHUB_ENV
-          echo "QUILL_CORE_HEADER=$(pwd)/quill.h" >> $GITHUB_ENV
+          mkdir -p bin
+          VERSION="0.0.1"
+          curl -L "https://github.com/quillphp/quill-core/releases/download/${VERSION}/libquill.so" -o bin/libquill.so
+          curl -L "https://raw.githubusercontent.com/quillphp/quill-core/${VERSION}/quill.h" -o bin/quill.h
+          echo "QUILL_CORE_BINARY=$(pwd)/bin/libquill.so" >> $GITHUB_ENV
+          echo "QUILL_CORE_HEADER=$(pwd)/bin/quill.h" >> $GITHUB_ENV
 
       - name: Run Benchmark
         run: composer bench | tee benchmark_results.txt
