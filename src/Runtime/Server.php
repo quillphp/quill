@@ -43,13 +43,20 @@ final class Server
         $nWorkers   = max(1, (int) (getenv('QUILL_WORKERS') ?: 1));
 
         if ($nWorkers > 1 && function_exists('pcntl_fork')) {
-            // Bind the TCP socket ONCE before any forks so every worker shares
-            // the same kernel accept queue.  The kernel delivers each connection
-            // to exactly one worker — guaranteed fair on macOS and Linux.
-            /** @phpstan-ignore-next-line */
-            $fd = Runtime::get()->quill_server_prebind($port);
-            if ($fd < 0) {
-                throw new \RuntimeException("Failed to pre-bind port {$port}. Is it already in use?");
+            // Attempt to pre-bind the TCP socket ONCE before forking so every
+            // worker shares the same kernel accept queue (optimal path).
+            // quill_server_prebind was added after the initial quill-core release,
+            // so we catch FFI\Exception and fall back gracefully: each worker will
+            // bind its own SO_REUSEPORT socket via the Rust make_listener() path.
+            try {
+                /** @phpstan-ignore-next-line */
+                $fd = Runtime::get()->quill_server_prebind($port);
+                if ($fd < 0) {
+                    throw new \RuntimeException("Failed to pre-bind port {$port}. Is it already in use?");
+                }
+            } catch (\FFI\Exception) {
+                // quill_server_prebind not available in this build of quill-core.
+                // Workers will each bind independently using SO_REUSEPORT.
             }
             $this->spawnWorkers($nWorkers);
         } else {

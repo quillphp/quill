@@ -90,9 +90,10 @@ jobs:
       - name: Setup Native Core Binary
         run: |
           mkdir -p bin
-          VERSION="0.0.1"
-          curl -L "https://github.com/quillphp/quill-core/releases/download/${VERSION}/libquill.so" -o bin/libquill.so
-          curl -L "https://raw.githubusercontent.com/quillphp/quill-core/${VERSION}/quill.h" -o bin/quill.h
+          VERSION=$(curl -fsSL "https://api.github.com/repos/quillphp/quill-core/releases/latest" | jq -r .tag_name)
+          echo "Using quill-core ${VERSION}"
+          curl -fsSL "https://github.com/quillphp/quill-core/releases/download/${VERSION}/libquill.so" -o bin/libquill.so
+          curl -fsSL "https://raw.githubusercontent.com/quillphp/quill-core/${VERSION}/quill.h" -o bin/quill.h
           echo "QUILL_CORE_BINARY=$(pwd)/bin/libquill.so" >> $GITHUB_ENV
           echo "QUILL_CORE_HEADER=$(pwd)/bin/quill.h" >> $GITHUB_ENV
 
@@ -151,9 +152,10 @@ jobs:
       - name: Setup Native Core Binary
         run: |
           mkdir -p bin
-          VERSION="0.0.1"
-          curl -L "https://github.com/quillphp/quill-core/releases/download/${VERSION}/libquill.so" -o bin/libquill.so
-          curl -L "https://raw.githubusercontent.com/quillphp/quill-core/${VERSION}/quill.h" -o bin/quill.h
+          VERSION=$(curl -fsSL "https://api.github.com/repos/quillphp/quill-core/releases/latest" | jq -r .tag_name)
+          echo "Using quill-core ${VERSION}"
+          curl -fsSL "https://github.com/quillphp/quill-core/releases/download/${VERSION}/libquill.so" -o bin/libquill.so
+          curl -fsSL "https://raw.githubusercontent.com/quillphp/quill-core/${VERSION}/quill.h" -o bin/quill.h
           echo "QUILL_CORE_BINARY=$(pwd)/bin/libquill.so" >> $GITHUB_ENV
           echo "QUILL_CORE_HEADER=$(pwd)/bin/quill.h" >> $GITHUB_ENV
 
