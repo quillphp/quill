@@ -32,7 +32,7 @@ final class Server
         $ffi = Runtime::get();
 
         /** @phpstan-ignore-next-line */
-        $this->callback = \FFI::callback(
+        $this->callback = $ffi->callback(
             'int (*)(uint32_t, char*, char*, char*, uint32_t)',
             function (int $handlerId, string $paramsJson, string $dtoDataJson, $outResponse, int $max) {
                 try {
