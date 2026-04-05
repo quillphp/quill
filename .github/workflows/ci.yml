@@ -42,12 +42,13 @@ jobs:
           cd quill-core
           cargo build --release
           echo "QUILL_CORE_BINARY=$(pwd)/target/release/libquill.so" >> $GITHUB_ENV
+          echo "QUILL_CORE_HEADER=$(pwd)/quill.h" >> $GITHUB_ENV
 
       - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
-          extensions: mbstring, openssl, opcache, apcu
-          ini-values: opcache.enable_cli=1, apc.enable_cli=1
+          extensions: mbstring, openssl, opcache, apcu, ffi
+          ini-values: opcache.enable_cli=1, apc.enable_cli=1, ffi.enable=1
           coverage: none
 
       - uses: actions/cache@v4

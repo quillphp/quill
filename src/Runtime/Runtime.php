@@ -28,7 +28,9 @@ final class Runtime
 
         $candidates = [
             // 1. Environment Variable
-            fn() => ($binary = getenv('QUILL_CORE_BINARY')) ? [(string) $binary, dirname((string) $binary) . '/' . $headerName] : null,
+            fn() => ($binary = getenv('QUILL_CORE_BINARY')) 
+                ? [(string) $binary, (string) (getenv('QUILL_CORE_HEADER') ?: dirname((string) $binary) . '/' . $headerName)] 
+                : null,
 
             // 2. Local Vendor (Path Repository / standard install)
             fn() => [
