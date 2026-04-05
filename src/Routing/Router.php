@@ -210,8 +210,8 @@ class Router
     private function match(string $method, string $path): array
     {
         $ffi          = Runtime::get();
-        $handlerId    = $ffi->new('uint32_t');
-        $numParams    = $ffi->new('uint32_t');
+        $handlerId    = $ffi->new('uint32_t[1]');
+        $numParams    = $ffi->new('uint32_t[1]');
         $paramsJson   = $ffi->new('char[2048]');
         
         /** @phpstan-ignore-next-line */
@@ -219,10 +219,8 @@ class Router
             $this->handle,
             $method, strlen($method),
             $path, strlen($path),
-            /** @phpstan-ignore-next-line */
-            \FFI::addr($handlerId),
-            /** @phpstan-ignore-next-line */
-            \FFI::addr($numParams),
+            $handlerId,
+            $numParams,
             $paramsJson, 2048
         );
 

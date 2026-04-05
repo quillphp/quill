@@ -60,11 +60,6 @@ final class Runtime
                     if (self::$available) {
                         return true;
                     }
-                } else {
-                    error_log(sprintf("[Quill] Candidate failed: lib=%s (%s), header=%s (%s)", 
-                        $soPath, file_exists($soPath) ? 'found' : 'missing',
-                        $headerPath, file_exists($headerPath) ? 'found' : 'missing'
-                    ));
                 }
             }
         }
@@ -94,14 +89,13 @@ final class Runtime
         try {
             $header = file_get_contents($headerPath);
             if ($header === false) {
-                error_log("[Quill] Failed to read header at $headerPath");
                 return;
             }
             /** @phpstan-ignore-next-line */
             self::$ffi = \FFI::cdef($header, $soPath);
             self::$available = true;
         } catch (\Throwable $e) {
-            error_log('[Quill] FFI load failed for ' . $soPath . ': ' . $e->getMessage());
+            // FFI load failed
         }
     }
 
