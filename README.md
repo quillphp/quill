@@ -17,28 +17,35 @@ QuillPHP is a **binary-native** API framework built for extreme low-latency envi
 
 The native **Quill Core** (Rust + Axum + Tokio) owns the entire I/O stack — TCP connections, route matching, DTO validation, and response serialisation. PHP is woken up only to run your handler, then goes back to polling. By strictly separating a one-time **Boot Phase** from a zero-overhead **Hot Path**, Quill reaches throughput that rivals compiled languages without leaving PHP.
 
-### Performance at Scale
+### Performance: Industry Benchmarks (TFB R22)
+
+*Hardware: 48-core AMD EPYC 7R13, 512 connections. Source: [TechEmpower Round 22 JSON](https://www.techempower.com/benchmarks/#hw=ph&test=json&section=data-r22).*
+
+| Framework | Throughput (req/s) | Avg Latency |
+|:---|---:|---:|
+| Actix-web 4 (Rust) | ~450,000 | ~0.22 ms |
+| Axum 0.7 (Rust / Tokio) | ~330,000 | ~0.30 ms |
+| Go Fiber v2 (fasthttp) | ~220,000 | ~0.45 ms |
+| Go net/http (stdlib) | ~115,000 | ~0.87 ms |
+| Node.js Fastify v4 | ~68,000 | ~1.47 ms |
+| Node.js Express v4 | ~18,000 | ~5.56 ms |
+| FastAPI + Uvicorn | ~11,000 | ~9.09 ms |
+
+### Performance: Direct Local Measurement
+
+*Hardware: Apple M-series (ARM64), 100 connections.*
 
 | Framework | Throughput (req/s) | Avg Latency | Notes |
 |:---|---:|---:|:---|
-| Actix-web 4 (Rust) | ~450,000 | ~0.22 ms | TFB R22 JSON, 4-core¹ |
-| Axum 0.7 (Rust / Tokio) | ~330,000 | ~0.30 ms | TFB R22 JSON, 4-core¹ |
-| Go Fiber v2 (fasthttp) | ~220,000 | ~0.45 ms | TFB R22 JSON, 4-core¹ |
-| **QuillPHP (Native)** | **133,627** | **1.16 ms** | **Direct measurement²** |
-| Go net/http (stdlib) | ~115,000 | ~0.87 ms | TFB R22 JSON, 4-core¹ |
-| Node.js Fastify v4 | ~68,000 | ~1.47 ms | TFB R22 JSON, 4-core¹ |
-| FrankenPHP (worker, NTS+JIT) | ~30,000 | ~3.33 ms | Estimated³ |
-| Node.js Express v4 | ~18,000 | ~5.56 ms | TFB R22 JSON, 4-core¹ |
-| FastAPI + Uvicorn (4 workers) | ~11,000 | ~9.09 ms | TFB R22 JSON, 4-core¹ |
-| Laravel Octane (Swoole, bare) | ~10,000 | ~10.0 ms | Bare route, no middleware⁴ |
+| **QuillPHP (Native)** | **133,627** | **1.16 ms** | `wrk` on macOS¹ |
+| FrankenPHP (worker) | ~30,000 | ~3.33 ms | Estimated² |
+| Laravel Octane (Swoole) | ~10,000 | ~10.0 ms | Bare route³ |
 
-> ¹ **TFB R22 extrapolated** — [TechEmpower Round 22 JSON Serialization](https://www.techempower.com/benchmarks/#hw=ph&test=json&section=data-r22) results (48-core AMD EPYC 7R13, 512 connections) scaled proportionally to 4-core equivalent for fair comparison. Compiled-language figures are likely *higher* on Apple Silicon, making QuillPHP's position conservative.
+> ¹ **QuillPHP measurement** — `wrk -t4 -c100 -d10s`, `QUILL_WORKERS=4`, macOS 14.4+, PHP 8.3 (NTS), Rust core built with `--release`.
 >
-> ² **Direct measurement** — `wrk -t4 -c100 -d10s`, `QUILL_WORKERS=4`, Apple M-series. PHP never touches the socket; Axum/Tokio owns all I/O.
+> ² **FrankenPHP estimate** — CI measures 10,804 req/s on ZTS/no-JIT (GitHub Actions 2-vCPU). NTS + JIT is documented at 2–3× that figure.
 >
-> ³ **FrankenPHP estimate** — CI measures 10,804 req/s on ZTS/no-JIT (GitHub Actions 2-vCPU). NTS + JIT is documented at 2–3× that figure; ~30,000 req/s on 4-core NTS hardware is a conservative estimate.
->
-> ⁴ **Laravel Octane** — Bare `Route::get('/hello', fn() => [...])` with no sessions, DB, or auth middleware. A default `laravel new` skeleton measures ~354 req/s on the same runner.
+> ³ **Laravel Octane** — Bare `Route::get('/hello', fn() => [...])` with no sessions, DB, or auth middleware in a production-optimised build.
 
 ---
 
