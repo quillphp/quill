@@ -90,13 +90,22 @@ class RouteMatch
 
         if (is_array($handler) && isset($handler[0], $handler[1])) {
             $class  = is_scalar($handler[0]) ? (string)$handler[0] : '';
+            /** @var string $method */
             $method = is_scalar($handler[1]) ? (string)$handler[1] : '';
             $key    = "$class::$method";
 
             if ($this->container && $this->container->has($class)) {
                 $instance = $this->container->get($class);
             } else {
+                if (!class_exists($class)) {
+                    throw new \RuntimeException("Handler class '{$class}' not found.");
+                }
+                /** @var object $instance */
                 $instance = $this->instanceCache[$class] ??= new $class();
+            }
+
+            if (!is_object($instance) || !method_exists($instance, $method)) {
+                throw new \RuntimeException("Method '{$method}' not found on handler class '{$class}'.");
             }
 
             $args = $this->resolveArgs($key, $request);

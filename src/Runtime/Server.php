@@ -214,12 +214,12 @@ final class Server
         $paramsBuf    = $this->driver->allocateParamsBuffer(4096);
         $dtoBuf       = $this->driver->allocateDtoBuffer(65536);
 
+        $id = 0;
         while ($this->running) {
             /** @phpstan-ignore-next-line */
             $hasRequest = $this->driver->poll($idBuf, $handlerIdBuf, $paramsBuf, 4096, $dtoBuf, 65536);
 
             if ($hasRequest === 1) {
-                $id = 0;
                 try {
                     /** @var \ArrayAccess<int, int> $idBuf */
                     $id        = (int)$idBuf[0];
@@ -266,8 +266,13 @@ final class Server
                     /** @phpstan-ignore-next-line */
                     $this->driver->respond($id, $json);
                 } catch (\Throwable $e) {
-                    $errJson = Json::encode(['status' => 500, 'body' => 'PHP Execution Error']);
-                    $this->driver->respond($id, $errJson);
+                    fwrite(STDERR, "[Worker " . getmypid() . "] Execution error: {$e->getMessage()}\n{$e->getTraceAsString()}\n");
+                    $errJson = Json::encode([
+                        'status' => 500,
+                        'headers' => ['Content-Type' => 'application/json'],
+                        'body' => Json::encode(['error' => 'Internal Server Error', 'detail' => $e->getMessage()])
+                    ]);
+                    $this->driver->respond((int)$id, $errJson);
                 }
             } else {
                 // No pending request — yield CPU unless we are in bench mode.

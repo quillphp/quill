@@ -46,6 +46,12 @@ class NativeDriver implements DriverInterface
         return $this->ffi->new("char[{$size}]");
     }
 
+    public function allocateResponseBuffer(int $size): mixed
+    {
+        /** @phpstan-ignore-next-line */
+        return $this->ffi->new("char[{$size}]");
+    }
+
     public function prebind(int $port): int
     {
         try {
@@ -78,5 +84,29 @@ class NativeDriver implements DriverInterface
     {
         /** @phpstan-ignore-next-line */
         return $this->ffi->quill_server_respond($id, $json, strlen($json));
+    }
+
+    public function dispatch(
+        mixed $routerHandle,
+        mixed $validatorHandle,
+        string $method,
+        string $path,
+        string $body,
+        mixed $outBuf,
+        int $outMax
+    ): int {
+        /** @phpstan-ignore-next-line */
+        return $this->ffi->quill_router_dispatch(
+            $routerHandle,
+            $validatorHandle,
+            $method,
+            strlen($method),
+            $path,
+            strlen($path),
+            $body,
+            strlen($body),
+            $outBuf,
+            $outMax
+        );
     }
 }

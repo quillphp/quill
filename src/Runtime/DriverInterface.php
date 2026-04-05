@@ -22,6 +22,7 @@ interface DriverInterface
     public function allocateHandlerIdBuffer(): mixed;
     public function allocateParamsBuffer(int $size): mixed;
     public function allocateDtoBuffer(int $size): mixed;
+    public function allocateResponseBuffer(int $size): mixed;
 
     /**
      * Pre-bind the TCP port before forking.
@@ -49,4 +50,17 @@ interface DriverInterface
      * Send a response back to the client.
      */
     public function respond(int $id, string $json): int;
+
+    /**
+     * Dispatch a request directly to the core (Sync mode).
+     */
+    public function dispatch(
+        mixed $routerHandle,
+        mixed $validatorHandle,
+        string $method,
+        string $path,
+        string $body,
+        mixed $outBuf,
+        int $outMax
+    ): int;
 }

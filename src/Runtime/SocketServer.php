@@ -13,11 +13,16 @@ class SocketServer
     private mixed $socket;
     private int $maxResponseSize = 65536;
 
+    private DriverInterface $driver;
+
     public function __construct(
         private readonly mixed $router,
         private readonly mixed $validator,
-        private readonly int $port
-    ) {}
+        private readonly int $port,
+        ?DriverInterface $driver = null
+    ) {
+        $this->driver = $driver ?: Runtime::getDriver();
+    }
 
     /**
      * Start the stream-based server.
@@ -101,20 +106,14 @@ class SocketServer
         }
 
         // 2. Native Dispatch (This doesn't require FFI::callback)
-        $ffi = Runtime::get();
-        /** @phpstan-ignore-next-line */
-        $outBuf = $ffi->new("char[{$this->maxResponseSize}]");
+        $outBuf = $this->driver->allocateResponseBuffer($this->maxResponseSize);
         
-        /** @phpstan-ignore-next-line */
-        $len = $ffi->quill_router_dispatch(
+        $len = $this->driver->dispatch(
             $this->router,
             $this->validator,
             $method,
-            strlen($method),
             $path,
-            strlen($path),
             $body,
-            strlen($body),
             $outBuf,
             $this->maxResponseSize
         );
@@ -122,8 +121,7 @@ class SocketServer
         if ($len < 0) {
             $response = "HTTP/1.1 500 Internal Server Error\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\nNative Dispatch Error";
         } else {
-            /** @var \FFI\CData $outBuf */
-            $jsonResponse = \FFI::string($outBuf);
+            $jsonResponse = $this->driver->getString($outBuf);
             $response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: " . strlen($jsonResponse) . "\r\nConnection: close\r\n\r\n" . $jsonResponse;
         }
 
