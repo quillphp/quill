@@ -31,8 +31,16 @@ final class Server
     {
         $ffi = Runtime::get();
 
+        if (!method_exists(\FFI::class, 'callback')) {
+            throw new \RuntimeException(sprintf(
+                "FFI::callback() is not available in this PHP environment. Registered FFI methods: %s. FFI Enabled: %s",
+                implode(', ', get_class_methods(\FFI::class) ?: []),
+                ini_get('ffi.enable')
+            ));
+        }
+
         /** @phpstan-ignore-next-line */
-        $this->callback = $ffi->callback(
+        $this->callback = \FFI::callback(
             'int (*)(uint32_t, char*, char*, char*, uint32_t)',
             function (int $handlerId, string $paramsJson, string $dtoDataJson, $outResponse, int $max) {
                 try {

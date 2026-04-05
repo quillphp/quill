@@ -87,6 +87,9 @@ jobs:
       - name: Install dependencies
         run: composer update --prefer-dist --no-progress --no-interaction
 
+      - name: Debug FFI Environment
+        run: php -r "echo 'FFI Class Methods: '; var_dump(get_class_methods('FFI')); echo 'FFI Config: '; var_dump(ini_get('ffi.enable'));"
+
       - name: Build Native Core from Vendor
         run: |
           cd vendor/quillphp/quill-core
@@ -146,6 +149,9 @@ jobs:
 
       - name: Install dependencies
         run: composer update --prefer-dist --no-progress --no-interaction
+
+      - name: Debug FFI Environment
+        run: php -r "echo 'FFI Class Methods: '; var_dump(get_class_methods('FFI')); echo 'FFI Config: '; var_dump(ini_get('ffi.enable'));"
 
       - name: Build Native Core from Vendor
         run: |
