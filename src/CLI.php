@@ -113,6 +113,11 @@ class CLI
 
     private function serve(string $port): void
     {
+        // Support both "serve 8080" and "serve --port=8080"
+        if (str_starts_with($port, '--port=')) {
+            $port = substr($port, 7);
+        }
+
         putenv("QUILL_PORT=$port");
         putenv("QUILL_RUNTIME=rust");
         

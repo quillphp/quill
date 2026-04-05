@@ -170,9 +170,10 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const results = fs.readFileSync('benchmark_results.txt', 'utf8');
-            const marker = "### 🚀 Benchmark Results";
-            const newContent = `${marker}\n\n\`\`\`text\n${results}\n\`\`\``;
+            const data = fs.readFileSync('benchmark_results.txt', 'utf8');
+            const results = data.replace(/\u001b\[[0-9;]*m/g, '');
+            const marker = "### 🚀 Quill Performance Metrics";
+            const newContent = `${marker}\n\n**Environment**: Ubuntu (Fallback SocketServer)\n\n\`\`\`text\n${results}\n\`\`\``;
             
             const body = context.payload.pull_request.body || "";
             if (body.includes(marker)) {
