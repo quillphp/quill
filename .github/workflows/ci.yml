@@ -18,7 +18,47 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  pull-requests: write
+
 jobs:
+  pr-linter:
+    name: PR Content Linter
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR Checklist Content
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            if (!pr) return core.info("No Pull Request context found. Skipping check.");
+            const body = pr.body || "";
+
+            // Split body into sections by ## headers
+            const sections = body.split(/^## /m);
+            const checklistSection = sections.find(s => s.toLowerCase().startsWith("checklist"));
+            const typeSection = sections.find(s => s.toLowerCase().startsWith("type of change"));
+
+            // 1. Mandatory Header Check
+            if (!checklistSection) {
+              return core.setFailed("Pull Request description is missing the mandatory '## Checklist' section.");
+            }
+
+            // 2. Checklist Verification (Warning Only)
+            const unchecked = (checklistSection.match(/- \[ \] /g) || []).length;
+            if (unchecked > 0) {
+              core.warning(`Found ${unchecked} unchecked items in your PR Checklist. Please complete them before merging.`);
+            }
+
+            // 3. Type of Change Verification (Warning Only)
+            if (typeSection) {
+              const checked = (typeSection.match(/- \[x\] /gi) || []).length;
+              if (checked === 0 && typeSection.includes("- [ ] ")) {
+                core.warning("Selection of a 'Type of change' is missing. Please select one or remove irrelevant options.");
+              }
+            }
+
   test:
     name: Tests (Pest) — PHP ${{ matrix.php }}
     runs-on: ubuntu-latest
@@ -47,19 +87,21 @@ jobs:
       - name: Install dependencies
         run: composer update --prefer-dist --no-progress --no-interaction
 
-      - name: Build Native Core from Vendor
+      - name: Setup Native Core Binary
         run: |
-          cd vendor/quillphp/quill-core
-          cargo build --release
-          echo "QUILL_CORE_BINARY=$(pwd)/target/release/libquill_core.so" >> $GITHUB_ENV
-          echo "QUILL_CORE_HEADER=$(pwd)/quill.h" >> $GITHUB_ENV
-          ls -R .
+          mkdir -p bin
+          VERSION=$(curl -fsSL "https://api.github.com/repos/quillphp/quill-core/releases/latest" | jq -r .tag_name)
+          echo "Using quill-core ${VERSION}"
+          curl -fsSL "https://github.com/quillphp/quill-core/releases/download/${VERSION}/libquill.so" -o bin/libquill.so
+          curl -fsSL "https://raw.githubusercontent.com/quillphp/quill-core/${VERSION}/quill.h" -o bin/quill.h
+          echo "QUILL_CORE_BINARY=$(pwd)/bin/libquill.so" >> $GITHUB_ENV
+          echo "QUILL_CORE_HEADER=$(pwd)/bin/quill.h" >> $GITHUB_ENV
 
       - name: Run Tests (Pest)
         run: vendor/bin/pest --no-coverage
 
   phpstan:
-    name: PHPStan (level 6)
+    name: PHPStan (level 9)
     runs-on: ubuntu-latest
 
     steps:
@@ -82,3 +124,94 @@ jobs:
 
       - name: Run PHPStan
         run: vendor/bin/phpstan analyse --no-progress
+
+  benchmark:
+    name: Benchmark — PHP ${{ matrix.php }}
+    runs-on: ubuntu-latest
+    needs: test
+    strategy:
+      matrix:
+        php: ['8.3']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, openssl, opcache, apcu, ffi
+          ini-values: opcache.enable_cli=1, apc.enable_cli=1, ffi.enable=on
+          coverage: none
+
+      - name: Install wrk
+        run: sudo apt-get update && sudo apt-get install -y wrk
+
+      - name: Install dependencies
+        run: composer update --prefer-dist --no-progress --no-interaction
+
+      - name: Setup Native Core Binary
+        run: |
+          mkdir -p bin
+          VERSION=$(curl -fsSL "https://api.github.com/repos/quillphp/quill-core/releases/latest" | jq -r .tag_name)
+          echo "Using quill-core ${VERSION}"
+          curl -fsSL "https://github.com/quillphp/quill-core/releases/download/${VERSION}/libquill.so" -o bin/libquill.so
+          curl -fsSL "https://raw.githubusercontent.com/quillphp/quill-core/${VERSION}/quill.h" -o bin/quill.h
+          echo "QUILL_CORE_BINARY=$(pwd)/bin/libquill.so" >> $GITHUB_ENV
+          echo "QUILL_CORE_HEADER=$(pwd)/bin/quill.h" >> $GITHUB_ENV
+          echo "QUILL_CORE_VERSION=${VERSION}" >> $GITHUB_ENV
+
+      - name: Run Benchmark
+        run: |
+          echo "BENCH_WORKERS=${THREADS}" >> $GITHUB_ENV
+          composer bench | tee benchmark_results.txt
+        env:
+          DURATION: 5
+          THREADS: 2
+          CONNECTIONS: 50
+
+      - name: Report Benchmark Results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const data = fs.readFileSync('benchmark_results.txt', 'utf8');
+            const results = data.replace(/\u001b\[[0-9;]*m/g, '');
+            const marker = "### 🚀 Quill Performance Metrics";
+            const newContent = `${marker}\n\n**Environment**: Ubuntu · PHP ${{ matrix.php }} · quill-core \`${{ env.QUILL_CORE_VERSION }}\` · ${{ env.BENCH_WORKERS }} workers Quill Core\n\n\`\`\`text\n${results}\n\`\`\``;
+            
+            const body = context.payload.pull_request.body || "";
+            if (body.includes(marker)) {
+              const updatedBody = body.replace(new RegExp(`${marker}[\\s\\S]*$`), "").trim();
+              await github.rest.pulls.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.payload.pull_request.number,
+                body: updatedBody
+              });
+            }
+
+            // 2. Get comments to find existing one
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+            });
+            
+            const existingComment = comments.find(c => c.body.includes(marker));
+            
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: newContent
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body: newContent
+              });
+            }

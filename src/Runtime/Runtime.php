@@ -91,8 +91,9 @@ final class Runtime
             if ($header === false) {
                 return;
             }
+            $typedefs = "typedef unsigned int uint32_t; typedef unsigned short uint16_t; typedef unsigned long size_t;";
             /** @phpstan-ignore-next-line */
-            self::$ffi = \FFI::cdef($header, $soPath);
+            self::$ffi = \FFI::cdef($typedefs . $header, $soPath);
             self::$available = true;
         } catch (\Throwable $e) {
             // FFI load failed

@@ -55,22 +55,38 @@ info "Connections: ${CONNECTIONS}"
 info "Workers    : ${THREADS}"
 
 # Start server
-QUILL_WORKERS="${THREADS}" "${PHP}" -d ffi.enable=on bin/quill serve --port="${PORT}" >/dev/null 2>&1 &
+# APP_ENV=bench disables the usleep(100) idle yield inside the PHP poll loop,
+# keeping it hot under load.
+info "Starting Quill server..."
+SERVER_LOG="/tmp/quill-server.log"
+QUILL_WORKERS="${THREADS}" QUILL_CORE_BINARY="${QUILL_CORE_BINARY:-}" QUILL_CORE_HEADER="${QUILL_CORE_HEADER:-}" APP_ENV="${APP_ENV:-bench}" QUILL_RUNTIME="${QUILL_RUNTIME:-rust}" "${PHP}" -d ffi.enable=on bin/quill serve --port="${PORT}" > "${SERVER_LOG}" 2>&1 &
 SERVER_PID=$!
 
-# Wait for ready
+# Wait for first worker to answer
 READY=0
 for _ in $(seq 1 20); do
     if curl -s "http://${HOST}:${PORT}/hello" >/dev/null 2>&1; then READY=1; break; fi
     sleep 0.5
 done
 
-if [ "${READY}" -eq 0 ]; then warn "Server failed to start."; exit 1; fi
+if [ "${READY}" -eq 0 ]; then
+    warn "Server failed to start. Last logs:"
+    tail -n 20 "${SERVER_LOG}" | sed 's/^/    /'
+    exit 1
+fi
+
+# When running multiple workers give the remaining processes time to bind the
+# port and enter their poll loops before we start hammering them.
+if [ "${THREADS}" -gt 1 ]; then
+    sleep 1
+fi
 info "Server is ready. Running benchmarks..."
 
-# Results
+# Results — use time-based tests so the full ${DURATION}s window is exercised
+# regardless of how fast the server is.
 if [ "${TOOL}" = "wrk" ]; then
     wrk -t"${THREADS}" -c"${CONNECTIONS}" -d"${DURATION}s" "http://${HOST}:${PORT}/hello" | sed 's/^/    /'
 else
-    ab -n 50000 -c "${CONNECTIONS}" -q "http://${HOST}:${PORT}/hello" | grep -E "^(Requests per second|Complete requests|Failed)" | sed 's/^/    /'
+    ab -t "${DURATION}" -n 1000000 -c "${CONNECTIONS}" -q "http://${HOST}:${PORT}/hello" \
+        | grep -E "^(Requests per second|Complete requests|Failed)" | sed 's/^/    /'
 fi

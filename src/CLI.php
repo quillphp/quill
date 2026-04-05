@@ -9,7 +9,7 @@ use Quill\Http\HttpResponse;
 use Quill\Validation\DTO;
 
 /**
- * Modern CLI Orchestrator for Quill (2026).
+ * Modern CLI for Quill.
  * Zero-dependency, high-performance terminal interface.
  */
 class CLI
@@ -33,6 +33,7 @@ class CLI
         'make:dto'        => 'Create a new DTO class',
         'make:middleware' => 'Create a new middleware class',
         'make:exception'  => 'Create a new custom exception',
+        'benchmark'       => 'Run high-performance HTTP benchmark suite',
         'completion'      => 'Generate shell completion script (zsh/bash)',
         'help'            => 'Show this help message',
     ];
@@ -56,6 +57,7 @@ class CLI
             'make:dto'        => $this->makeDTO($argv[2] ?? null),
             'make:middleware' => $this->makeMiddleware($argv[2] ?? null),
             'make:exception'  => $this->makeException($argv[2] ?? null),
+            'benchmark'       => $this->benchmark(),
             'completion'      => $this->completion($argv[2] ?? 'zsh'),
             'help'            => $this->showHelp(),
             default           => null,
@@ -111,6 +113,11 @@ class CLI
 
     private function serve(string $port): void
     {
+        // Support both "serve 8080" and "serve --port=8080"
+        if (str_starts_with($port, '--port=')) {
+            $port = substr($port, 7);
+        }
+
         putenv("QUILL_PORT=$port");
         putenv("QUILL_RUNTIME=rust");
         
@@ -291,5 +298,16 @@ EOD;
         } else {
             echo "# Auto-completion currently only supports ZSH (default for Mac).\n";
         }
+    }
+
+    private function benchmark(): void
+    {
+        $script = __DIR__ . '/../scripts/http-bench.sh';
+        if (!file_exists($script)) {
+            echo "\n " . $this->color("[ERROR]:", "red") . " Benchmark script not found at " . $this->color("scripts/http-bench.sh", "bold") . "\n\n";
+            exit(1);
+        }
+
+        passthru("bash " . escapeshellarg($script));
     }
 }

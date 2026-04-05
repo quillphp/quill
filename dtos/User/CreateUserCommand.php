@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Dtos\User;
 
-use Quill\DTO;
+use Quill\Validation\DTO;
 
 class CreateUserCommand extends DTO
 {
