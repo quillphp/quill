@@ -22,17 +22,8 @@ class RuntimeTest extends TestCase
             $this->markTestSkipped('FFI extension required');
         }
 
-        $libName = PHP_OS_FAMILY === 'Darwin' ? 'libquill.dylib' : 'libquill.so';
-        $vendorBin = getenv('QUILL_CORE_BINARY') 
-            ? dirname((string) getenv('QUILL_CORE_BINARY')) . '/'
-            : __DIR__ . '/../../../vendor/quillphp/quill-core/bin/';
-
-        Runtime::init(
-            soPath:     getenv('QUILL_CORE_BINARY') ?: $vendorBin . $libName,
-            headerPath: getenv('QUILL_CORE_HEADER') ?: $vendorBin . 'quill.h'
-        );
-
-        $this->assertTrue(Runtime::isAvailable());
+        // Use the same robust discovery logic as the main app
+        $this->assertTrue(Runtime::boot());
     }
 
     #[Test]

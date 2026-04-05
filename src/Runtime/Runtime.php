@@ -23,45 +23,49 @@ final class Runtime
             return true;
         }
 
-        $libName = PHP_OS_FAMILY === 'Darwin' ? 'libquill.dylib' : 'libquill.so';
+        $libNames = PHP_OS_FAMILY === 'Darwin' 
+            ? ['libquill_core.dylib', 'libquill.dylib'] 
+            : ['libquill_core.so', 'libquill.so'];
         $headerName = 'quill.h';
 
-        $candidates = [
-            // 1. Environment Variable
-            fn() => ($binary = getenv('QUILL_CORE_BINARY')) 
-                ? [(string) $binary, (string) (getenv('QUILL_CORE_HEADER') ?: dirname((string) $binary) . '/' . $headerName)] 
-                : null,
+        foreach ($libNames as $libName) {
+            $candidates = [
+                // 1. Environment Variable
+                fn() => ($binary = getenv('QUILL_CORE_BINARY')) 
+                    ? [(string) $binary, (string) (getenv('QUILL_CORE_HEADER') ?: dirname((string) $binary) . '/' . $headerName)] 
+                    : null,
 
-            // 2. Local Vendor (Path Repository / standard install)
-            fn() => [
-                dirname(__DIR__, 2) . '/vendor/quillphp/quill-core/bin/' . $libName,
-                dirname(__DIR__, 2) . '/vendor/quillphp/quill-core/bin/' . $headerName
-            ],
+                // 2. Local Vendor (Path Repository / standard install)
+                fn() => [
+                    dirname(__DIR__, 2) . '/vendor/quillphp/quill-core/bin/' . $libName,
+                    dirname(__DIR__, 2) . '/vendor/quillphp/quill-core/bin/' . $headerName
+                ],
 
-            // 3. System Level
-            fn() => [
-                '/usr/local/lib/' . $libName,
-                '/usr/local/include/' . $headerName
-            ]
-        ];
+                // 3. System Level
+                fn() => [
+                    '/usr/local/lib/' . $libName,
+                    '/usr/local/include/' . $headerName
+                ]
+            ];
 
-        foreach ($candidates as $candidateLoader) {
-            $paths = $candidateLoader();
-            if (!$paths) continue;
-            
-            $soPath = (string) $paths[0];
-            $headerPath = (string) $paths[1];
+            foreach ($candidates as $candidateLoader) {
+                $paths = $candidateLoader();
+                if (!$paths) continue;
+                
+                $soPath = (string) $paths[0];
+                $headerPath = (string) $paths[1];
 
-            if (file_exists($soPath) && file_exists($headerPath)) {
-                self::init($soPath, $headerPath);
-                if (self::$available) {
-                    return true;
+                if (file_exists($soPath) && file_exists($headerPath)) {
+                    self::init($soPath, $headerPath);
+                    if (self::$available) {
+                        return true;
+                    }
+                } else {
+                    error_log(sprintf("[Quill] Candidate failed: lib=%s (%s), header=%s (%s)", 
+                        $soPath, file_exists($soPath) ? 'found' : 'missing',
+                        $headerPath, file_exists($headerPath) ? 'found' : 'missing'
+                    ));
                 }
-            } else {
-                error_log(sprintf("[Quill] Candidate failed: lib=%s (%s), header=%s (%s)", 
-                    $soPath, file_exists($soPath) ? 'found' : 'missing',
-                    $headerPath, file_exists($headerPath) ? 'found' : 'missing'
-                ));
             }
         }
 

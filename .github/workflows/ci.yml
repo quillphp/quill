@@ -31,20 +31,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build Quill Core
-        uses: actions/checkout@v4
-        with:
-          repository: quillphp/quill-core
-          path: quill-core
-
-      - name: Build Quill Core
-        run: |
-          cd quill-core
-          cargo build --release
-          echo "QUILL_CORE_BINARY=$(pwd)/target/release/libquill.so" >> $GITHUB_ENV
-          echo "QUILL_CORE_HEADER=$(pwd)/quill.h" >> $GITHUB_ENV
-          ls -R .
-
       - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
@@ -60,6 +46,14 @@ jobs:
 
       - name: Install dependencies
         run: composer update --prefer-dist --no-progress --no-interaction
+
+      - name: Build Native Core from Vendor
+        run: |
+          cd vendor/quillphp/quill-core
+          cargo build --release
+          echo "QUILL_CORE_BINARY=$(pwd)/target/release/libquill_core.so" >> $GITHUB_ENV
+          echo "QUILL_CORE_HEADER=$(pwd)/quill.h" >> $GITHUB_ENV
+          ls -R .
 
       - name: Run Tests (Pest)
         run: vendor/bin/pest --no-coverage
