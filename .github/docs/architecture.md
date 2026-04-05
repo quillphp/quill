@@ -1,90 +1,113 @@
-# QuillPHP Architecture Deep-Dive
+# Architecture
 
-QuillPHP is built on a "Boot Once, Serve Forever" philosophy. Unlike traditional PHP frameworks that re-reflect and re-init on every request, QuillPHP separates its logic into a high-overhead **Boot Phase** and a zero-overhead **Hot Path**.
+QuillPHP follows a **Boot Once, Serve Forever** model. All expensive reflection and compilation work happens once at startup; the per-request hot path is kept to an absolute minimum.
 
 ---
 
-## 1. Request Lifecycle Overview
+## 1. Request Lifecycle
 
-QuillPHP handles requests via a high-performance **Binary Core** written in Rust. This core manages the HTTP server, routing, and initial validation entirely in native code before bridging to PHP via FFI.
+Every request is handled by the Rust binary core before PHP is ever invoked.
 
-```mermaid
-graph TD
-    A[Incoming Request] --> B[Quill Binary Core<br/><i>Rust / C-ABI</i>]
-    B --> C{Match Found?}
-    C -- Yes --> D["FFI Callback<br/><i>PHP Hot Path</i>"]
-    D --> E["Middleware Chain<br/><i>CORS, Auth, Global Filters</i>"]
-    E --> F["Handler Execution<br/><i>DTO Hydration & Business Logic</i>"]
-    F --> G["Binary response<br/><i>Direct to Rust Buffer</i>"]
-    G --> H[End Request]
-    C -- No --> I[Binary 404/405 Response]
-
-    style B fill:#f96,stroke:#333,stroke-width:2px
-    style D fill:#f9f,stroke:#333,stroke-width:2px
-    style F fill:#bbf,stroke:#333,stroke-width:2px
-    style G fill:#dfd,stroke:#333,stroke-width:2px
+```
+Incoming Request
+      │
+      ▼
+┌─────────────────────────────┐
+│  Quill Binary Core (Rust)   │  ← Axum HTTP server
+│  • Radix-tree routing       │
+│  • JSON body parsing        │
+│  • DTO schema validation    │
+└────────────┬────────────────┘
+             │  FFI bridge (single C call)
+             ▼
+┌─────────────────────────────┐
+│  PHP Worker Process         │
+│  • Middleware pipeline      │
+│  • Handler execution        │
+│  • Response serialisation   │
+└────────────┬────────────────┘
+             │  FFI bridge (response)
+             ▼
+      Rust → Socket → Client
 ```
 
----
-
-## 2. Phase Separation: The Core Optimization
-
-### The Boot Phase (Server Startup)
-When the Quill Binary Server starts:
-1.  **Binary Compilation**: The `Router` compiles all registered routes into a native Radix-tree structure within the Rust core.
-2.  **Reflection Caching**: For every handler, Quill reflects parameters and stores a `paramCache` (type hint, dependency type, default values) in PHP memory.
-3.  **Schema Registration**: The `Validator` reflects DTO classes and registers their validation schemas with the native Rust validation engine.
-
-### The Hot Path (Request Resolution)
-Once the Boot Phase is complete, the per-request cost is microsecond-level:
-- **Native Routing**: Routing happens in Rust at O(log n) speed before PHP is even touched.
-- **Native Validation**: JSON body validation occurs in Rust; PHP only receives pre-validated data.
-- **FFI Bridge**: A single C-callback triggers the PHP handler.
-- **Zero-Allocation**: No closures or pipeline objects are created for requests without middleware.
+Invalid requests (bad routes, failed validation) are rejected entirely in Rust — PHP is never touched.
 
 ---
 
-## 3. High-Performance Components
+## 2. Boot Phase vs. Hot Path
 
-### Binary Router
-The `Router` doesn't just match strings; it builds a native binary manifest. By offloading routing to Rust, Quill avoids the PHP overhead of regex matching or large array lookups.
+### Boot Phase  *(runs once per worker, at startup)*
 
-### Pipeline (Middleware)
-QuillPHP uses the "Onion" middleware pattern with a **Fast-Path optimization**:
-If no middleware is registered, the `Pipeline` is bypassed entirely, executing the destination handler directly.
+| Step | What happens |
+| :--- | :--- |
+| `Router::compile()` | Serialises all PHP routes into a JSON manifest and calls `quill_router_build()` via FFI, producing a native Radix-tree in the Rust heap |
+| `Validator::reinitialize()` | Reflects all DTO attribute rules and registers JSON schemas with the Rust validation engine via `quill_validator_register()` |
+| Param cache | Reflection data for every handler (type hints, defaults) is stored in PHP memory and never re-computed |
 
-### Binary Validator & DTOs
-Validation in Quill is **Native-first**. 
-- Rules (e.g., `#[Required]`, `#[Email]`) are compiled into a binary schema.
-- The Rust engine performs SIMD-accelerated JSON parsing and validation.
-- This results in a "fail-fast" architecture where invalid requests never consume PHP worker resources.
+### Hot Path  *(runs per request)*
 
----
-
-## 4. Operational Excellence
-
-### Binary Output Stream
-QuillPHP bypasses `ob_start` and standard PHP output buffering.
-- Handlers return data directly to the FFI memory boundary.
-- The Rust core streams the response directly to the socket, eliminating multiple memory copies.
-
-### Memory & GC Management
-For the long-running Binary Server, QuillPHP includes **GC Throttling**:
-- Cycles are collected periodically (configurable via `QUILL_GC_INTERVAL`).
-- This maintains a stable memory footprint during high-concurrency bursts.
+| Step | Where |
+| :--- | :--- |
+| HTTP accept + parse | Rust (Axum) |
+| Route matching | Rust (O(log n) Radix tree) |
+| Body validation | Rust (sonic-rs SIMD) |
+| FFI poll | PHP calls `quill_server_poll()` |
+| Middleware pipeline | PHP |
+| Handler | PHP |
+| Response | PHP calls `quill_server_respond()` |
 
 ---
 
-## 5. Security & Isolation
+## 3. Multi-Worker Architecture
 
-- **Immutable DTOs**: We recommend `readonly` properties for DTOs to ensure data integrity.
-- **Native CORS**: CORS preflight (`OPTIONS`) is handled in the binary layer for maximum efficiency.
+```
+php bin/quill serve
+        │
+        ├── pcntl_fork()  ──►  Worker 1 (child)
+        ├── pcntl_fork()  ──►  Worker 2 (child)
+        │                         ⋮
+        └──────────────────────►  Worker N (parent)
+```
+
+Each worker:
+1. Calls `Validator::reinitialize()` and `Router::recompile()` **after** the fork, so every process owns its own Rust objects with no shared heap state across process boundaries.
+2. Binds the TCP port independently using `SO_REUSEPORT`; the kernel distributes connections between workers.
+3. Optionally participates in a single pre-bound socket when `quill_server_prebind()` is available in the loaded binary (graceful fallback otherwise).
+
+Worker count is controlled by the `QUILL_WORKERS` environment variable.
 
 ---
 
-## 6. Recommended Architecture (ADR & Hexagonal)
+## 4. Key Components
 
-QuillPHP encourages a clean architectural separation, dropping MVC in favor of **Action-Domain-Responder (ADR)**.
-- **Actions (`handlers/`)**: Invokable classes mapping to single operations.
-- **CQRS Payload (`dtos/`)**: Typed `Quill\Validation\DTO` classes acting as Commands/Queries.
-- **Domain (`domain/`)**: Isolated business logic invoked by Actions.
+### `src/Runtime/Runtime.php`
+Manages FFI initialisation. Discovers `libquill.so` / `libquill.dylib` via:
+1. `QUILL_CORE_BINARY` / `QUILL_CORE_HEADER` environment variables
+2. `vendor/quillphp/quill-core/bin/`
+3. `/usr/local/lib/`
+
+### `src/Runtime/Server.php`
+Owns the main event loop. Calls `quill_server_poll()` in a tight loop, dispatches matched requests to PHP handlers via `RouteMatch`, and returns responses with `quill_server_respond()`.
+
+### `src/Routing/Router.php`
+Compiles PHP route definitions into a JSON manifest for the Rust Radix-tree router. Also holds the param cache used for zero-reflection dispatch on the hot path.
+
+### `src/Validation/Validator.php`
+Wraps the Rust validator registry. Reflects DTO PHP attributes once and registers binary schemas. Validates request bodies natively before they reach PHP.
+
+### `src/Runtime/SocketServer.php`
+Pure-PHP fallback HTTP server for environments without FFI. Used automatically when `Runtime::isAvailable()` returns `false`.
+
+---
+
+## 5. Recommended Project Layout (ADR)
+
+QuillPHP encourages **Action-Domain-Responder** over MVC:
+
+| Directory | Role |
+| :--- | :--- |
+| `handlers/` | Single-operation invokable classes (Actions) |
+| `dtos/` | Typed `DTO` subclasses — Commands / Queries |
+| `domain/` | Pure business logic, framework-agnostic |
+

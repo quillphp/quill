@@ -1,43 +1,56 @@
 # Configuration Reference
 
-Pass configuration options to the `App` constructor in `public/index.php`.
+All options are passed as an associative array to the `App` constructor in `public/index.php`.
 
-## App Configuration
+---
+
+## Full Example
 
 ```php
+use Quill\App;
+use Quill\Logger;
+
 $app = new App([
-    'docs'        => false,           // bool — enable /docs and /docs/openapi.json
-    'debug'       => false,           // bool — include stack traces in error responses
-    'env'         => 'prod',          // 'prod' | 'dev'
-    'route_cache' => false,           // false = disabled (worker mode)
-                                      // string = path to cache file (FPM mode)
-    'logger'      => 'php://stderr',  // Logger instance | file path | null
-    'log_level'   => Logger::INFO,    // Logger::DEBUG | INFO | WARNING | ERROR
-    'log_format'  => 'json',          // 'text' | 'json'
+    'docs'        => false,
+    'debug'       => false,
+    'env'         => 'prod',
+    'route_cache' => false,
+    'logger'      => 'php://stderr',
+    'log_level'   => Logger::INFO,
+    'log_format'  => 'json',
 ]);
 ```
 
-## Config Keys Detailed
+---
+
+## Options
 
 | Key | Type | Default | Description |
-|---|---|---|---|
-| `docs` | `bool` | `false` | Enable/disable OpenAPI spec and Swagger UI. |
-| `debug`| `bool` | `false` | If true, error responses include stack traces. |
-| `env` | `string` | `'prod'` | Environment label (`prod`, `dev`). |
-| `route_cache` | `mixed` | `false` | Path to route cache file or `false`. |
-| `logger` | `mixed` | `null` | Logger instance, file path, or stream. |
-| `log_level` | `int` | `Logger::INFO` | Minimum log level to record. |
-| `log_format` | `string` | `'text'` | Record logs as `text` or `json`. |
+| :--- | :--- | :--- | :--- |
+| `docs` | `bool` | `false` | Expose `GET /docs` (Swagger UI) and `GET /docs/openapi.json` |
+| `debug` | `bool` | `false` | Include stack traces in `5xx` error responses |
+| `env` | `string` | `'prod'` | Environment label — `'prod'` or `'dev'` |
+| `route_cache` | `false\|string` | `false` | Path to a route cache file, or `false` to disable |
+| `logger` | `null\|string\|Logger` | `null` | Logger destination — stream URI, file path, or `Logger` instance |
+| `log_level` | `int` | `Logger::INFO` | Minimum severity to record |
+| `log_format` | `string` | `'text'` | Output format — `'text'` or `'json'` |
 
 ---
 
-## Performance Tip
+## Environment Variables
 
-Set `route_cache => false` in the long-running **Binary Server** mode. The compiled dispatcher lives in memory for the process lifetime — no file cache is needed.
+| Variable | Description |
+| :--- | :--- |
+| `QUILL_WORKERS` | Number of worker processes to fork (default: `1`) |
+| `QUILL_RUNTIME` | Set to `rust` to force the binary core |
+| `QUILL_CORE_BINARY` | Absolute path to `libquill.so` / `libquill.dylib` |
+| `QUILL_CORE_HEADER` | Absolute path to `quill.h` |
+| `APP_ENV` | Set to `bench` to disable idle `usleep()` in the poll loop |
 
 ---
 
-## What's Next?
+## Notes
 
-- Explore the **[API Reference](api-reference.md)**.
-- Review the **[Architecture Guide](architecture.md)**.
+- **`route_cache`** — Leave as `false` in long-running binary server mode. The compiled router lives in the Rust heap for the entire process lifetime; file caching is only beneficial in FPM-style request-per-process environments.
+- **`docs`** — Requires the routes to carry OpenAPI metadata. Disabled by default in production to avoid exposing API structure.
+

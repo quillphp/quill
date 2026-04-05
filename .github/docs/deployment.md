@@ -1,59 +1,145 @@
 # Deployment Guide
 
-QuillPHP is built for self-contained binary deployment. By avoiding traditional SAPIs like FPM, deployment is simplified to running the Quill Binary Server directly.
+QuillPHP runs as a self-contained long-running process. No web server (Apache, Nginx, PHP-FPM) is required.
 
-## Deployment Workflow
+---
 
-### 1. Build and Prepare
-Ensure the Quill Binary Core for your target OS is in the `bin/` directory.
+## 1. Prerequisites
+
+- PHP 8.3+ CLI with `ffi`, `pcntl`, `posix` extensions enabled
+- `ffi.enable=on` in `php.ini` (or pass `-d ffi.enable=on` on the command line)
+- `libquill.so` / `libquill.dylib` from `quillphp/quill-core` (installed via Composer)
+
+---
+
+## 2. Start the Server
 
 ```bash
-# Verify the binary core is accessible
-ls bin/libquill.*
+# Single worker
+php bin/quill serve --port=8080
+
+# Multiple workers (recommended for production)
+QUILL_WORKERS=8 php bin/quill serve --port=8080
 ```
 
-### 2. Configure Opcache Preload
-For maximum performance, we recommend preloading the Application and Lifecycle code:
+The process prints one line per worker when ready:
+
+```
+[Worker 12345] listening on http://0.0.0.0:8080
+[Worker 12346] listening on http://0.0.0.0:8080
+```
+
+Each worker binds the port independently via `SO_REUSEPORT`; the kernel distributes connections evenly between them.
+
+---
+
+## 3. Recommended Worker Count
+
+Set `QUILL_WORKERS` to the number of available CPU cores:
+
+```bash
+QUILL_WORKERS=$(nproc) php bin/quill serve --port=8080
+```
+
+---
+
+## 4. OPcache Tuning
+
+Enable OPcache for maximum PHP throughput:
 
 ```ini
-# opcache.ini
-opcache.preload=/var/www/scripts/preload.php
-opcache.preload_user=www-data
+; php.ini
+opcache.enable=1
+opcache.enable_cli=1
+opcache.jit=tracing
+opcache.jit_buffer_size=128M
+opcache.memory_consumption=256
+opcache.max_accelerated_files=20000
 ```
 
-### 3. Native Binary Server
-Run the production server using the Quill CLI.
+---
 
-```bash
-# Serve with multiple workers (Linux/macOS)
-QUILL_WORKERS=8 php bin/quill serve --port=80
-```
-
-## Docker Deployment
-
-The recommended approach is a multi-stage Docker build that includes the PHP runtime and the Quill Binary Core.
+## 5. Docker
 
 ```dockerfile
-# Dockerfile
 FROM php:8.3-cli-alpine
 
-# Install FFI and other requirements
-RUN apk add --no-cache libffi-dev && \
-    docker-php-ext-install ffi
+RUN apk add --no-cache libffi-dev \
+    && docker-php-ext-configure ffi \
+    && docker-php-ext-install ffi pcntl posix \
+    && echo "ffi.enable=on" >> /usr/local/etc/php/php.ini
 
-# Copy application and binary core
-COPY . /var/www
 WORKDIR /var/www
+COPY . .
 
-# Launch the server
+RUN composer install --no-dev --optimize-autoloader
+
 CMD ["php", "bin/quill", "serve", "--port=80"]
 ```
 
-## Security Hardening
+Run with workers matching vCPU count:
 
-To secure your production instance, follow these best practices:
+```bash
+docker run -e QUILL_WORKERS=4 -p 8080:80 my-quill-api
+```
 
-- **Resource Limits**: Configured via the Quill CLI or OS-level limits (e.g., `ulimit -n 65535`).
-- **Binary Hardening**: Ensure `libquill.so` is owned by `root` with `755` permissions.
-- **Process Isolation**: Run the Quill process as a non-privileged user (e.g., `www-data`).
-- **Reverse Proxy**: While Quill serves HTTP directly, we recommend using **Nginx** or **Traefik** as a reverse proxy for TLS termination and global rate limiting.
+---
+
+## 6. Reverse Proxy (Nginx / Traefik)
+
+For TLS termination and global rate limiting, place Quill behind Nginx:
+
+```nginx
+upstream quill {
+    server 127.0.0.1:8080;
+    keepalive 64;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name api.example.com;
+
+    location / {
+        proxy_pass         http://quill;
+        proxy_http_version 1.1;
+        proxy_set_header   Connection "";
+        proxy_set_header   Host $host;
+        proxy_set_header   X-Real-IP $remote_addr;
+    }
+}
+```
+
+---
+
+## 7. Process Management (systemd)
+
+```ini
+[Unit]
+Description=QuillPHP API Server
+After=network.target
+
+[Service]
+User=www-data
+WorkingDirectory=/var/www/my-api
+Environment=QUILL_WORKERS=8
+ExecStart=/usr/bin/php bin/quill serve --port=8080
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+systemctl enable --now quill-api
+```
+
+---
+
+## 8. Security Hardening
+
+- Run the process as a non-root user.
+- Ensure `libquill.so` is owned by `root` with `755` permissions.
+- Configure OS-level file descriptor limits: `ulimit -n 65535`.
+- Use a reverse proxy for TLS; Quill speaks plain HTTP internally.
+

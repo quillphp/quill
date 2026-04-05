@@ -1,46 +1,66 @@
 # Performance Benchmarks
 
-QuillPHP is built for peak efficiency. By offloading routing and validation to a native Rust core, it eliminates the traditional overhead associated with PHP's request lifecycle.
+QuillPHP offloads HTTP serving, routing, and validation to a native Rust core (Axum + sonic-rs), eliminating the traditional PHP per-request overhead.
 
-## Native Performance (HTTP/1.1)
+---
 
-| Framework | Runtime | Throughput (req/s) | Latency (ms) |
-| :--- | :--- | :--- | :--- |
-| **QuillPHP** | **Quill Binary Core** | **61,892** | **1.61** |
-| Go Fiber | Native Go | 63,210 | 1.58 |
-| Node.js Fastify | cluster (16 workers) | 54,120 | 2.11 |
-| Laravel Octane | Swoole NTS | 18,354 | 14.54 |
+## Benchmark Environment
 
-*Benchmarks conducted on AWS c6i.xlarge (4 vCPU, 8GB RAM). QuillPHP configuration: 4 binary workers.*
+| Parameter | Value |
+| :--- | :--- |
+| Tool | `wrk` |
+| Duration | 5 s |
+| Connections | 50 |
+| Workers | 2 (`QUILL_WORKERS=2`) |
+| Runtime | Quill Binary Core (Rust / Axum) |
+| PHP | 8.3 |
+| OS | Ubuntu (GitHub Actions `ubuntu-latest`) |
 
-## Why Quill is Faster
+---
 
-Traditional PHP frameworks spend significant CPU time on:
-1.  **Request Parsing**: Large string operations in PHP userland.
-2.  **Routing**: Iterating through hundreds of regex-based routes.
-3.  **Middleware**: Deep recursive call stacks.
-4.  **Serialization**: Heavy JSON encoding in every response.
-
-QuillPHP solves this by performing these operations in the **Binary Core**:
-
-| Feature | Tradition (PHP) | Quill (Binary) |
-| :--- | :--- | :--- |
-| **Routing** | O(n) Regex | O(log n) Radix Tree |
-| **Validation** | Reflection + PHP | SIMD + Native |
-| **JSON** | `json_encode` | SIMD `sonic-rs` |
-| **Output** | Buffer -> SAPI | Direct Socket Stream |
-
-## Reproducing the Numbers
-
-To run benchmarks on your local machine:
+## Running Benchmarks Locally
 
 ```bash
-# 1. Start the Quill server
-php quill serve --port=8080
+# Install wrk (macOS)
+brew install wrk
 
-# 2. Run h2load (HTTP/2) or wrk (HTTP/1.1)
-wrk -t4 -c128 -d30s http://127.0.0.1:8080/hello
+# Run the benchmark suite
+QUILL_WORKERS=4 composer bench
 ```
 
-> [!IMPORTANT]
-> For production-grade benchmarks, ensure the `FFI` extension is enabled and `opcache.preload` is configured to point to your `routes.php`.
+The script `scripts/http-bench.sh` starts the Quill server, waits for it to be ready, then runs `wrk` against the `/hello` endpoint.
+
+You can override the defaults with environment variables:
+
+```bash
+DURATION=30 CONNECTIONS=200 THREADS=8 composer bench
+```
+
+---
+
+## Why Quill Is Fast
+
+Traditional PHP frameworks repeat this work on **every request**:
+
+| Concern | Traditional PHP | QuillPHP |
+| :--- | :--- | :--- |
+| Routing | O(n) regex iteration | O(log n) Radix tree in Rust |
+| Body validation | PHP reflection + userland rules | SIMD JSON in Rust (sonic-rs) |
+| JSON encoding | `json_encode` | sonic-rs (SIMD accelerated) |
+| Response delivery | SAPI output buffer | Direct socket write from Rust |
+| Bootstrap | Full framework init per request | Boot once, serve forever |
+
+---
+
+## Reproducing CI Results
+
+The `benchmark` job in `.github/workflows/ci.yml` downloads the latest `libquill.so` from the `quillphp/quill-core` releases, starts the server, and runs `wrk`. Results are posted as a PR comment automatically.
+
+```bash
+# Trigger locally (requires wrk)
+QUILL_CORE_BINARY=/path/to/libquill.so \
+QUILL_CORE_HEADER=/path/to/quill.h \
+DURATION=5 THREADS=2 CONNECTIONS=50 \
+composer bench
+```
+

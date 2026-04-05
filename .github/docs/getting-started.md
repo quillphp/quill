@@ -1,13 +1,17 @@
 # Getting Started with QuillPHP
 
-Build O(1) latency APIs in minutes with the **Quill Binary Core**.
+Build high-throughput APIs in minutes using the **Quill Binary Core**.
 
 ## Requirements
 
-- **PHP 8.3+** (CLI mode)
-- **FFI Extension** enabled (`ffi.enable=1`)
-- **JSON & MBString Extensions**
-- **Quill Binary Core** (for your OS, in `bin/`)
+| Requirement | Version |
+| :--- | :--- |
+| PHP | 8.3+ (CLI) |
+| PHP Extensions | `ffi`, `pcntl`, `posix`, `json`, `mbstring` |
+| php.ini | `ffi.enable=on` |
+| Quill Binary Core | `libquill.so` / `libquill.dylib` (bundled via Composer) |
+
+---
 
 ## Installation
 
@@ -16,18 +20,25 @@ composer create-project quillphp/quill my-api
 cd my-api
 ```
 
-## Serving Your API
+The `quillphp/quill-core` Composer dependency ships a pre-built binary for Linux and macOS. No manual build step is required.
 
-Quill serves HTTP requests directly via its **Native Binary Core**. You do not need a web server like Apache or Nginx for development.
+---
+
+## Start the Server
 
 ```bash
-# Start the binary server
-php bin/quill serve --port=8080
+# Single worker (development)
+php bin/quill serve
+
+# Multiple workers (production)
+QUILL_WORKERS=4 php bin/quill serve --port=8080
 ```
 
-## Building Your First Route
+---
 
-Edit `routes.php` (or your entry point) to define a simple GET route.
+## Your First Route
+
+Edit `routes.php` to define a GET endpoint:
 
 ```php
 use Quill\App;
@@ -35,18 +46,50 @@ use Quill\Http\Request;
 
 $app = new App();
 
-// Define a route
-$app->get('/hello', function (Request $request) {
-    return ['message' => 'Hello from the Binary Core!'];
+$app->get('/hello', function (Request $request): array {
+    return ['message' => 'Hello from Quill!'];
 });
 
-// Start the lifecycle
 $app->run();
 ```
 
+Start the server and test it:
+
+```bash
+curl http://localhost:8080/hello
+# {"message":"Hello from Quill!"}
+```
+
+---
+
+## Project Structure
+
+```
+my-api/
+├── attributes/          # Custom validation attributes
+├── bin/
+│   └── quill            # CLI entry point
+├── domain/              # Business / domain logic
+├── dtos/                # Data Transfer Objects
+├── handlers/            # Action handlers (ADR pattern)
+├── public/
+│   └── index.php        # Application bootstrap
+├── routes.php           # Route definitions
+├── scripts/
+│   └── http-bench.sh    # Local benchmark runner
+└── src/                 # Framework source
+    ├── Http/            # Request, Response, Cors
+    ├── Routing/         # Router, RouteMatch
+    ├── Runtime/         # Server, Runtime (FFI), Json
+    └── Validation/      # Validator, DTO
+```
+
+---
+
 ## Next Steps
 
-- **[Architecture Deep-Dive](architecture.md)** — Learn how the binary core offloads the "Hot Path".
-- **[Routing Strategies](routing.md)** — Master verb mapping, groups, and parameter extraction.
-- **[Validation & DTOs](validation.md)** — Use type-safe, binary-validated request data.
-- **[Middleware](middleware.md)** — Build robust pipelines for security and CORS.
+- **[Architecture](architecture.md)** — How the binary core and PHP interact.
+- **[Routing](routing.md)** — Groups, parameters, and ADR handlers.
+- **[DTOs & Validation](validation.md)** — Type-safe request bodies.
+- **[Middleware](middleware.md)** — CORS, auth, and custom pipelines.
+

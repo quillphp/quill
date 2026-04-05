@@ -1,48 +1,87 @@
 # Middleware Reference
 
-QuillPHP implements the "Onion" middleware pattern. Middleware is a `callable(Request $req, callable $next): mixed`.
+QuillPHP uses the **Onion** pattern: each middleware wraps the next, receiving the request before and the response after the inner layers execute.
+
+A middleware is any `callable(Request $req, callable $next): mixed`.
+
+---
 
 ## Global Middleware
 
-Register middleware globally in `public/index.php`.
+Register with `$app->use()` in `public/index.php`:
 
 ```php
-$app->use(function (Request $req, callable $next) {
-    // Before handler
+$app->use(function (Request $req, callable $next): mixed {
+    // before handler
     $result = $next($req);
-    // After handler
+    // after handler
     return $result;
 });
 ```
+
+Middleware is executed in registration order (outermost first).
+
+> **Performance note:** When no middleware is registered, the `Pipeline` is bypassed entirely and the handler is called directly — zero allocation overhead.
 
 ---
 
 ## Built-in CORS Middleware
 
-Quill includes a first-class CORS middleware.
-
 ```php
 use Quill\Http\Cors;
 
 $app->use(Cors::middleware(
-    origins: ['https://app.example.com'],
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    headers: ['Content-Type', 'Authorization'],
+    origins:     ['https://app.example.com'],
+    methods:     ['GET', 'POST', 'PUT', 'DELETE'],
+    headers:     ['Content-Type', 'Authorization'],
     credentials: true,
-    maxAge: 86400,
+    maxAge:      86400,
 ));
+```
+
+CORS `OPTIONS` preflight requests are handled automatically.
+
+---
+
+## Built-in Security Headers
+
+```php
+use Quill\Middleware\SecurityHeaders;
+
+$app->use(new SecurityHeaders());
+```
+
+Adds `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, and `Permissions-Policy` headers to every response.
+
+---
+
+## Built-in Rate Limiter
+
+```php
+use Quill\Middleware\RateLimiter;
+
+$app->use(new RateLimiter(maxRequests: 100, windowSeconds: 60));
+```
+
+---
+
+## Built-in Request ID
+
+```php
+use Quill\Middleware\RequestId;
+
+$app->use(new RequestId());
+// Attaches X-Request-Id header to every response
 ```
 
 ---
 
 ## Authentication Example
 
-Custom middleware for token validation:
-
 ```php
-$app->use(function (Request $req, callable $next) {
+$app->use(function (Request $req, callable $next): mixed {
     if ($req->path() === '/health') {
-        return $next($req); // bypass auth
+        return $next($req); // bypass auth for health check
     }
 
     $token = $req->header('Authorization');
@@ -56,13 +95,18 @@ $app->use(function (Request $req, callable $next) {
 
 ---
 
-## Performance Optimization
+## Exception Recovery
 
-When no middleware is registered, the dispatch closure is **never allocated**. This saves ~0.5 µs per request in FrankenPHP worker mode.
+```php
+use Quill\Middleware\Recover;
+
+$app->use(new Recover()); // catches uncaught Throwables → 500 JSON response
+```
 
 ---
 
 ## What's Next?
 
-- Configure **[Logging](logging.md)** for your application.
-- Learn about **[Deployment](deployment.md)** to run on Swoole in production.
+- **[Logging](logging.md)** — Add structured logging to your middleware.
+- **[Deployment](deployment.md)** — Run Quill with multiple workers in production.
+

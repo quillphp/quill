@@ -1,77 +1,105 @@
 # API Reference
 
-Detailed technical specifications for the core QuillPHP components.
+Detailed method signatures for the core QuillPHP classes.
 
-## `App`
+---
 
-The main application orchestrator.
+## `Quill\App`
 
 | Method | Signature | Description |
-|---|---|---|
+| :--- | :--- | :--- |
 | `get` | `(string $path, callable\|array $handler): void` | Register a GET route |
 | `post` | `(string $path, callable\|array $handler): void` | Register a POST route |
 | `put` | `(string $path, callable\|array $handler): void` | Register a PUT route |
 | `patch` | `(string $path, callable\|array $handler): void` | Register a PATCH route |
 | `delete` | `(string $path, callable\|array $handler): void` | Register a DELETE route |
-| `head` | `(string $path, callable\|array $handler): void`| Register a HEAD route |
-| `options`| `(string $path, callable\|array $handler): void`| Register an OPTIONS route |
-| `map` | `(array $methods, string $path, callable\|array $handler): void` | Register multiple methods |
-| `group` | `(string $prefix, callable $callback): void` | Group routes under a prefix |
-| `resource`| `(string $path, string $class): void`| Register a full RESTful resource |
+| `head` | `(string $path, callable\|array $handler): void` | Register a HEAD route |
+| `options` | `(string $path, callable\|array $handler): void` | Register an OPTIONS route |
+| `map` | `(array $methods, string $path, callable\|array $handler): void` | Register multiple methods at once |
+| `group` | `(string $prefix, callable $callback): void` | Group routes under a common prefix |
+| `resource` | `(string $path, string $class): void` | Register a full RESTful resource (index/store/show/update/destroy) |
 | `use` | `(callable $middleware): void` | Register global middleware |
-| `boot` | `(): void` | Compile internal state (called automatically) |
-| `run` | `(): void` | Start the server (Quill Binary Core) |
-| `setLogger`| `(?Logger $logger): void` | Update the logger at runtime |
-| `getLogger`| `(): ?Logger` | Get the active logger instance |
+| `boot` | `(): void` | Compile routes and validators (called automatically by `run()`) |
+| `run` | `(): void` | Start the server |
+| `setLogger` | `(?Logger $logger): void` | Replace the active logger |
+| `getLogger` | `(): ?Logger` | Get the active logger |
 
 ---
 
-## `Request`
+## `Quill\Http\Request`
 
-Access point for all incoming HTTP data.
+| Method | Return | Description |
+| :--- | :--- | :--- |
+| `method()` | `string` | HTTP verb (`GET`, `POST`, …) |
+| `path()` | `string` | URL path without query string |
+| `param(string $key)` | `string\|null` | Named route parameter |
+| `query(string $key)` | `string\|null` | Query string value |
+| `input(string $key)` | `mixed` | Parsed JSON body field |
+| `body()` | `array` | Full parsed JSON body |
+| `header(string $name)` | `string\|null` | Request header value |
+| `ip()` | `string\|null` | Client IP address |
+| `protocol()` | `string` | HTTP protocol version |
+
+---
+
+## `Quill\Http\HttpResponse`
+
+JSON response wrapper.
+
+```php
+// 200 OK (default)
+return new HttpResponse(['success' => true]);
+
+// 201 Created
+return new HttpResponse(['id' => 42], 201);
+
+// 404 Not Found
+return new HttpResponse(['error' => 'Not found'], 404);
+
+// 422 with custom headers
+return new HttpResponse(['errors' => [...]], 422, ['X-Trace-Id' => 'abc']);
+```
+
+---
+
+## `Quill\Http\HtmlResponse`
+
+HTML response wrapper.
+
+```php
+return new HtmlResponse('<h1>Hello</h1>');
+return new HtmlResponse('<h1>Not Found</h1>', 404);
+```
+
+---
+
+## `Quill\Validation\DTO`
+
+Base class for all Data Transfer Objects.
+
+| Method | Signature | Description |
+| :--- | :--- | :--- |
+| `fromRequest` | `static (Request $req): static` | Hydrate a DTO from an already-validated request; throws `422` on failure |
+
+---
+
+## `Quill\Logger`
+
+| Method | Signature | Description |
+| :--- | :--- | :--- |
+| `debug` | `(string $msg, array $ctx = []): void` | Log at DEBUG level |
+| `info` | `(string $msg, array $ctx = []): void` | Log at INFO level |
+| `warning` | `(string $msg, array $ctx = []): void` | Log at WARNING level |
+| `error` | `(string $msg, array $ctx = []): void` | Log at ERROR level |
+
+---
+
+## `Quill\Runtime\Runtime`
 
 | Method | Description |
-|---|---|
-| `method()` | Get HTTP method (`GET`, `POST`, etc.) |
-| `path()` | Get the URL path (without query string) |
-| `param(string $key)` | Get an individual named route parameter |
-| `query(string $key)` | Get a query string value by key |
-| `input(string $key)`| Get a parsed JSON body field |
-| `body()` | Get the full parsed JSON body array |
-| `header(string $name)`| Get a request header value |
-| `ip()` | Get the client IP address |
-| `protocol()`| Get the HTTP protocol version |
+| :--- | :--- |
+| `Runtime::boot(): bool` | Auto-discover and load the native binary |
+| `Runtime::init(string $soPath, string $headerPath): void` | Load a specific binary |
+| `Runtime::isAvailable(): bool` | Whether the FFI binary loaded successfully |
+| `Runtime::get(): \FFI` | Return the active FFI instance (throws if not initialized) |
 
----
-
-## `HttpResponse`
-
-Wrapper for generating JSON responses.
-
-```php
-// Status 200 (Default)
-return new \Quill\Http\HttpResponse(['success' => true]);
-
-// Status 201 Created
-return new \Quill\Http\HttpResponse(['id' => 1], 201);
-
-// Status 404 Not Found
-return new \Quill\Http\HttpResponse(['error' => 'User not found'], 404);
-```
-
----
-
-## `HtmlResponse`
-
-Wrapper for generating HTML responses.
-
-```php
-return new \Quill\HtmlResponse('<h1>Hello World</h1>');
-```
-
----
-
-## What's Next?
-
-- Explore the **[Architecture Guide](architecture.md)**.
-- Review **[DTOs & Validation](validation.md)**.
