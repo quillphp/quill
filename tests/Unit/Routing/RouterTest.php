@@ -15,13 +15,15 @@ class RouterTest extends TestCase
     protected function setUp(): void
     {
         Runtime::reset();
-        $libName = PHP_OS_FAMILY === 'Darwin' ? 'libquill.dylib' : 'libquill.so';
-        $vendorBin = __DIR__ . '/../../../vendor/quillphp/quill-core/bin/';
+        if (!Runtime::boot()) {
+            $libName = PHP_OS_FAMILY === 'Darwin' ? 'libquill.dylib' : 'libquill.so';
+            $vendorBin = __DIR__ . '/../../../vendor/quillphp/quill-core/bin/';
 
-        Runtime::init(
-            soPath:     $vendorBin . $libName,
-            headerPath: $vendorBin . 'quill.h',
-        );
+            Runtime::init(
+                soPath:     $vendorBin . $libName,
+                headerPath: $vendorBin . 'quill.h',
+            );
+        }
 
         if (!Runtime::isAvailable()) {
             $this->markTestSkipped('Quill Core (libquill.so) required for tests.');

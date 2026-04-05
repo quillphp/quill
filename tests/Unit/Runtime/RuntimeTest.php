@@ -23,11 +23,13 @@ class RuntimeTest extends TestCase
         }
 
         $libName = PHP_OS_FAMILY === 'Darwin' ? 'libquill.dylib' : 'libquill.so';
-        $vendorBin = __DIR__ . '/../../../vendor/quillphp/quill-core/bin/';
+        $vendorBin = getenv('QUILL_CORE_BINARY') 
+            ? dirname((string) getenv('QUILL_CORE_BINARY')) . '/'
+            : __DIR__ . '/../../../vendor/quillphp/quill-core/bin/';
 
         Runtime::init(
-            soPath:     $vendorBin . $libName,
-            headerPath: $vendorBin . 'quill.h'
+            soPath:     getenv('QUILL_CORE_BINARY') ?: $vendorBin . $libName,
+            headerPath: getenv('QUILL_CORE_HEADER') ?: $vendorBin . 'quill.h'
         );
 
         $this->assertTrue(Runtime::isAvailable());
