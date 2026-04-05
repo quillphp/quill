@@ -245,6 +245,22 @@ class Router
         ];
     }
 
+    /**
+     * Free the existing Rust handle and recompile from scratch.
+     * Called by each forked worker process so every process owns an independent
+     * Arc<QuillRouter> in its own Rust heap instead of sharing a COW copy.
+     */
+    public function recompile(): void
+    {
+        if ($this->handle !== null) {
+            $ffi = Runtime::get();
+            /** @phpstan-ignore-next-line */
+            $ffi->quill_router_free($this->handle);
+            $this->handle = null;
+        }
+        $this->compile();
+    }
+
     public function __destruct()
     {
         if ($this->handle !== null) {

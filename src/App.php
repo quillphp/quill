@@ -99,6 +99,8 @@ class App
     private function runWithQuill(): void
     {
         $port = (int)(getenv('QUILL_PORT') ?: 8080);
+        $this->router->compile();
+        
         $server = new Server($this->router);
         $server->start($port);
     }

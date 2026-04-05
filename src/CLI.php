@@ -9,7 +9,7 @@ use Quill\Http\HttpResponse;
 use Quill\Validation\DTO;
 
 /**
- * Modern CLI Orchestrator for Quill (2026).
+ * Modern CLI for Quill.
  * Zero-dependency, high-performance terminal interface.
  */
 class CLI
