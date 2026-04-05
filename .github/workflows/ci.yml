@@ -168,22 +168,41 @@ jobs:
           script: |
             const fs = require('fs');
             const results = fs.readFileSync('benchmark_results.txt', 'utf8');
-            const prNumber = context.payload.pull_request.number;
-            const body = context.payload.pull_request.body || "";
-            
             const marker = "### 🚀 Benchmark Results";
             const newContent = `${marker}\n\n\`\`\`text\n${results}\n\`\`\``;
             
-            let updatedBody;
+            const body = context.payload.pull_request.body || "";
             if (body.includes(marker)) {
-              updatedBody = body.replace(new RegExp(`${marker}[\\s\\S]*$`), newContent);
-            } else {
-              updatedBody = `${body}\n\n${newContent}`;
+              const updatedBody = body.replace(new RegExp(`${marker}[\\s\\S]*$`), "").trim();
+              await github.rest.pulls.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.payload.pull_request.number,
+                body: updatedBody
+              });
             }
-            
-            await github.rest.pulls.update({
+
+            // 2. Get comments to find existing one
+            const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              pull_number: prNumber,
-              body: updatedBody
+              issue_number: context.payload.pull_request.number,
             });
+            
+            const existingComment = comments.find(c => c.body.includes(marker));
+            
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: newContent
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body: newContent
+              });
+            }
