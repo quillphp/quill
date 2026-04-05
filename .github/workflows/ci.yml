@@ -24,11 +24,16 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - name: Check PR Checklist
-        uses: davideviolante/pr-checklist-checker@v1
+      - name: Check PR Checklist Content
+        uses: actions/github-script@v7
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          at-least-one-checked: 'true'
+          script: |
+            const pr = context.payload.pull_request;
+            if (!pr) return core.setFailed("No Pull Request context found.");
+            const body = pr.body || "";
+            if (!body.includes("## Checklist")) return core.setFailed("Pull Request is missing the '## Checklist' section.");
+            const unchecked = (body.match(/- \[ \] /g) || []).length;
+            if (unchecked > 0) return core.setFailed(`There are ${unchecked} unchecked items in the PR checklist. Please fulfill all required items.`);
 
   test:
     name: Tests (Pest) — PHP ${{ matrix.php }}
