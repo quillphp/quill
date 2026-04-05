@@ -10,6 +10,8 @@ use Handlers\User\DeleteUserAction;
 
 /** @var \Quill\App $app */
 
+$app->get('/hello', fn() => ['message' => 'Quill is ready']);
+
 $app->group('/api', function ($app) {
     $app->group('/v1', function ($app) {
         $app->get('/users', [ListUsersAction::class, '__invoke']);

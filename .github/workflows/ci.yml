@@ -18,6 +18,9 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  pull-requests: write
+
 jobs:
   pr-linter:
     name: PR Content Linter
@@ -152,8 +155,35 @@ jobs:
           echo "QUILL_CORE_HEADER=$(pwd)/quill.h" >> $GITHUB_ENV
 
       - name: Run Benchmark
-        run: composer bench
+        run: composer bench | tee benchmark_results.txt
         env:
           DURATION: 5
           THREADS: 2
           CONNECTIONS: 50
+
+      - name: Report Benchmark Results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const results = fs.readFileSync('benchmark_results.txt', 'utf8');
+            const prNumber = context.payload.pull_request.number;
+            const body = context.payload.pull_request.body || "";
+            
+            const marker = "### 🚀 Benchmark Results";
+            const newContent = `${marker}\n\n\`\`\`text\n${results}\n\`\`\``;
+            
+            let updatedBody;
+            if (body.includes(marker)) {
+              updatedBody = body.replace(new RegExp(`${marker}[\\s\\S]*$`), newContent);
+            } else {
+              updatedBody = `${body}\n\n${newContent}`;
+            }
+            
+            await github.rest.pulls.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber,
+              body: updatedBody
+            });

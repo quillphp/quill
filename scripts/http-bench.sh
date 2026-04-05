@@ -55,7 +55,9 @@ info "Connections: ${CONNECTIONS}"
 info "Workers    : ${THREADS}"
 
 # Start server
-QUILL_WORKERS="${THREADS}" "${PHP}" -d ffi.enable=on bin/quill serve --port="${PORT}" >/dev/null 2>&1 &
+info "Starting Quill server..."
+SERVER_LOG="/tmp/quill-server.log"
+QUILL_WORKERS="${THREADS}" "${PHP}" -d ffi.enable=on bin/quill serve --port="${PORT}" > "${SERVER_LOG}" 2>&1 &
 SERVER_PID=$!
 
 # Wait for ready
@@ -65,7 +67,11 @@ for _ in $(seq 1 20); do
     sleep 0.5
 done
 
-if [ "${READY}" -eq 0 ]; then warn "Server failed to start."; exit 1; fi
+if [ "${READY}" -eq 0 ]; then 
+    warn "Server failed to start. Last logs:"
+    tail -n 20 "${SERVER_LOG}" | sed 's/^/    /'
+    exit 1 
+fi
 info "Server is ready. Running benchmarks..."
 
 # Results
