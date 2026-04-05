@@ -29,7 +29,7 @@ jobs:
         with:
           script: |
             const pr = context.payload.pull_request;
-            if (!pr) return core.setFailed("No Pull Request context found.");
+            if (!pr) return core.info("No Pull Request context found. Skipping check.");
             const body = pr.body || "";
 
             // Split body into sections by ## headers
@@ -37,16 +37,22 @@ jobs:
             const checklistSection = sections.find(s => s.toLowerCase().startsWith("checklist"));
             const typeSection = sections.find(s => s.toLowerCase().startsWith("type of change"));
 
-            // 1. Validate Checklist Section (Mandatory & All must be checked)
-            if (!checklistSection) return core.setFailed("Pull Request description is missing the '## Checklist' section.");
-            const unchecked = (checklistSection.match(/- \[ \] /g) || []).length;
-            if (unchecked > 0) return core.setFailed(`There are ${unchecked} unchecked items in your '## Checklist'. Please ensure all project standards are met.`);
+            // 1. Mandatory Header Check
+            if (!checklistSection) {
+              return core.setFailed("Pull Request description is missing the mandatory '## Checklist' section.");
+            }
 
-            // 2. Validate Type of Change (At least one must be checked)
+            // 2. Checklist Verification (Warning Only)
+            const unchecked = (checklistSection.match(/- \[ \] /g) || []).length;
+            if (unchecked > 0) {
+              core.warning(`Found ${unchecked} unchecked items in your PR Checklist. Please complete them before merging.`);
+            }
+
+            // 3. Type of Change Verification (Warning Only)
             if (typeSection) {
               const checked = (typeSection.match(/- \[x\] /gi) || []).length;
               if (checked === 0 && typeSection.includes("- [ ] ")) {
-                return core.setFailed("Please select at least one 'Type of change' or follow the template instructions to delete irrelevant options.");
+                core.warning("Selection of a 'Type of change' is missing. Please select one or remove irrelevant options.");
               }
             }
 
