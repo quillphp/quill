@@ -30,9 +30,12 @@ final class Server
     private $validator;
     private bool $running = true;
 
-    public function __construct(Router $router)
+    private DriverInterface $driver;
+
+    public function __construct(Router $router, ?DriverInterface $driver = null)
     {
         $this->router = $router;
+        $this->driver = $driver ?: Runtime::getDriver();
     }
 
     // ── Public entry-point ────────────────────────────────────────────────────
@@ -49,12 +52,13 @@ final class Server
             // so we catch FFI\Exception and fall back gracefully: each worker will
             // bind its own SO_REUSEPORT socket via the Rust make_listener() path.
             try {
-                /** @phpstan-ignore-next-line */
-                $fd = Runtime::get()->quill_server_prebind($port);
+                $fd = $this->driver->prebind($port);
                 if ($fd < 0) {
                     throw new \RuntimeException("Failed to pre-bind port {$port}. Is it already in use?");
                 }
-            } catch (\FFI\Exception) {
+            } catch (\RuntimeException $e) {
+                throw $e;
+            } catch (\Throwable) {
                 // quill_server_prebind not available in this build of quill-core.
                 // Workers will each bind independently using SO_REUSEPORT.
             }
@@ -97,13 +101,17 @@ final class Server
                 try {
                     $this->setupSignals([]);
                     $this->bootWorker();
+
+                    // Unblock signals before entering the event loop
+                    pcntl_sigprocmask(SIG_UNBLOCK, [SIGTERM, SIGINT]);
+                    $this->runEventLoop();
                 } catch (\Throwable $e) {
                     fwrite(STDERR, "[Worker " . getmypid() . "] Boot failed: {$e->getMessage()}\n");
                     exit(1);
+                } finally {
+                    // Ensure signals are unblocked before exit if boot fails
+                    pcntl_sigprocmask(SIG_UNBLOCK, [SIGTERM, SIGINT]);
                 }
-                pcntl_sigprocmask(SIG_UNBLOCK, [SIGTERM, SIGINT]);
-
-                $this->runEventLoop();
                 exit(0);
             }
 
@@ -186,7 +194,6 @@ final class Server
 
     private function runEventLoop(): void
     {
-        $ffi    = Runtime::get();
         $handle = $this->router->getHandle();
 
         if ($handle === null) {
@@ -194,7 +201,7 @@ final class Server
         }
 
         /** @phpstan-ignore-next-line */
-        $res = $ffi->quill_server_listen($handle, $this->validator, $this->port);
+        $res = $this->driver->listen($handle, $this->validator, $this->port);
         if ($res !== 0) {
             throw new \RuntimeException("Failed to listen on port {$this->port} (code: {$res})");
         }
@@ -202,28 +209,27 @@ final class Server
         echo '[Worker ' . getmypid() . "] listening on http://0.0.0.0:{$this->port}\n";
 
         // Pre-allocate FFI buffers once — reused for every request.
-        /** @var \FFI\CData $idBuf */
-        $idBuf        = $ffi->new('uint32_t[1]');
-        /** @var \FFI\CData $handlerIdBuf */
-        $handlerIdBuf = $ffi->new('uint32_t[1]');
-        /** @var \FFI\CData $paramsBuf */
-        $paramsBuf    = $ffi->new('char[4096]');
-        /** @var \FFI\CData $dtoBuf */
-        $dtoBuf       = $ffi->new('char[65536]');
+        $idBuf        = $this->driver->allocateIdBuffer();
+        $handlerIdBuf = $this->driver->allocateHandlerIdBuffer();
+        $paramsBuf    = $this->driver->allocateParamsBuffer(4096);
+        $dtoBuf       = $this->driver->allocateDtoBuffer(65536);
 
+        $id = 0;
         while ($this->running) {
             /** @phpstan-ignore-next-line */
-            $hasRequest = $ffi->quill_server_poll($idBuf, $handlerIdBuf, $paramsBuf, 4096, $dtoBuf, 65536);
+            $hasRequest = $this->driver->poll($idBuf, $handlerIdBuf, $paramsBuf, 4096, $dtoBuf, 65536);
 
             if ($hasRequest === 1) {
                 try {
-                    $id        = $idBuf[0];
-                    $handlerId = $handlerIdBuf[0];
+                    /** @var \ArrayAccess<int, int> $idBuf */
+                    $id        = (int)$idBuf[0];
+                    /** @var \ArrayAccess<int, int> $handlerIdBuf */
+                    $handlerId = (int)$handlerIdBuf[0];
 
                     /** @var string $paramsJson */
-                    $paramsJson  = \FFI::string($paramsBuf);
+                    $paramsJson  = $this->driver->getString($paramsBuf);
                     /** @var string $dtoDataJson */
-                    $dtoDataJson = \FFI::string($dtoBuf);
+                    $dtoDataJson = $this->driver->getString($dtoBuf);
 
                     $params  = Json::decode($paramsJson);
                     $dtoData = ($dtoDataJson !== 'null' && $dtoDataJson !== '')
@@ -235,7 +241,7 @@ final class Server
                     $request->setPathVars($params);
 
                     /** @var array{int, array<string>|(callable(): mixed), array<string, string>} $info */
-                    $info = [1, $this->router->getRoutes()[$handlerId][2], $params];
+                    $info = [1, $this->router->getRoutes()[(int)$handlerId][2], $params];
                     $routeMatch = new RouteMatch(
                         $info,
                         $this->router->getParamCache(),
@@ -258,11 +264,15 @@ final class Server
 
                     $json = Json::encode($response);
                     /** @phpstan-ignore-next-line */
-                    $ffi->quill_server_respond($id, $json, strlen($json));
+                    $this->driver->respond($id, $json);
                 } catch (\Throwable $e) {
-                    $errJson = Json::encode(['status' => 500, 'body' => 'PHP Execution Error']);
-                    /** @phpstan-ignore-next-line */
-                    $ffi->quill_server_respond($id, $errJson, strlen($errJson));
+                    fwrite(STDERR, "[Worker " . getmypid() . "] Execution error: {$e->getMessage()}\n{$e->getTraceAsString()}\n");
+                    $errJson = Json::encode([
+                        'status' => 500,
+                        'headers' => ['Content-Type' => 'application/json'],
+                        'body' => Json::encode(['error' => 'Internal Server Error', 'detail' => $e->getMessage()])
+                    ]);
+                    $this->driver->respond((int)$id, $errJson);
                 }
             } else {
                 // No pending request — yield CPU unless we are in bench mode.

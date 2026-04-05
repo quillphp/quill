@@ -172,7 +172,7 @@ class Router
     /** @return array<string, object> */
     public function getInstanceCache(): array { return $this->instanceCache; }
     public function getContainer(): ?ContainerInterface { return $this->container; }
-    public function getHandle(): ?\FFI\CData { return $this->handle; }
+    public function getHandle(): mixed { return $this->handle; }
 
     public function dispatch(string $method, string $path): RouteMatch
     {

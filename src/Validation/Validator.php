@@ -167,6 +167,11 @@ class Validator
      */
     public static function reinitialize(): void
     {
+        if (!Runtime::isAvailable()) {
+            self::$cache = [];
+            self::$handle = null;
+            return;
+        }
         // Free the inherited (COW) Rust handle in this process.
         if (self::$handle !== null) {
             try {
