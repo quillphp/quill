@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Quill;
+namespace Quill\Http;
 
 /**
- * Native-first Request wrapper.
+ * Request wrapper for Quill.
  * Directly wraps $_SERVER, $_GET, and php://input for zero allocation.
  */
 class Request
@@ -17,12 +17,6 @@ class Request
     private ?string $rawInputOverride = null;
     private ?string $methodOverride = null;
     private ?string $pathOverride = null;
-    /**
-     * Swoole headers (lowercase keys). Set via withSwooleHeaders() to avoid
-     * populating all $_SERVER['HTTP_*'] keys on every request.
-     * @var array<string, string>|null
-     */
-    private ?array $swooleHeaders = null;
     /** @var array<string, mixed> */
     private array $context = [];
 
@@ -53,14 +47,6 @@ class Request
      */
     public function ip(): string
     {
-        if ($this->swooleHeaders !== null) {
-            $val = $this->swooleHeaders['x-forwarded-for'];
-            if (!empty($val)) {
-                return trim(explode(',', (string)$val)[0]);
-            }
-            $remote = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
-            return is_string($remote) ? $remote : '127.0.0.1';
-        }
         if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
             $xff = $_SERVER['HTTP_X_FORWARDED_FOR'];
             $xffString = is_string($xff) ? $xff : '';
@@ -73,16 +59,9 @@ class Request
     /**
      * Retrieve a request header value (case-insensitive).
      * Returns null when the header is absent.
-     * When Swoole headers are injected via withSwooleHeaders(), they are looked
-     * up directly (O(1)) without touching $_SERVER.
      */
     public function header(string $name, ?string $default = null): ?string
     {
-        if ($this->swooleHeaders !== null) {
-            // Swoole headers are already lowercase; normalise the lookup key.
-            return $this->swooleHeaders[strtolower($name)] ?? $default;
-        }
-        // PHP exposes headers as HTTP_<UPPERCASE_NAME_WITH_UNDERSCORES>
         $key = 'HTTP_' . strtoupper(str_replace('-', '_', $name));
         $value = $_SERVER[$key] ?? $default;
         return is_string($value) ? $value : $default;
@@ -108,7 +87,6 @@ class Request
         if (false !== $pos = strpos($uri, '?')) {
             $uri = substr($uri, 0, $pos);
         }
-        // Only pay for rawurldecode when the path actually contains percent-encoded chars.
         return strpos($uri, '%') !== false ? rawurldecode($uri) : $uri;
     }
 
@@ -131,29 +109,13 @@ class Request
     }
 
     /**
-     * Override the raw input body (for testing without a real HTTP request).
+     * Override the raw input body.
      */
     public function withInput(string $raw): static
     {
         $clone = clone $this;
         $clone->rawInputOverride = $raw;
-        $clone->jsonBody = null; // reset parse cache
-        return $clone;
-    }
-
-    /**
-     * Inject Swoole request headers directly into this Request, bypassing the
-     * need to populate all $_SERVER['HTTP_*'] keys on every request.
-     *
-     * Swoole provides headers with lowercase keys (HTTP/2 convention).
-     * Used by App::handleSwooleRequest() for the zero-overhead hot path.
-     *
-     * @param array<string, string> $headers
-     */
-    public function withSwooleHeaders(array $headers): static
-    {
-        $clone = clone $this;
-        $clone->swooleHeaders = $headers;
+        $clone->jsonBody = null; 
         return $clone;
     }
 
@@ -178,6 +140,14 @@ class Request
     }
 
     /**
+     * Get the raw request body.
+     */
+    public function input(): string
+    {
+        return $this->rawInputOverride ?? (string)file_get_contents('php://input');
+    }
+
+    /**
      * Parse and cache the JSON input body.
      * @return array<string, mixed>
      */
@@ -187,7 +157,7 @@ class Request
             return $this->jsonBody;
         }
 
-        $input = $this->rawInputOverride ?? file_get_contents('php://input');
+        $input = $this->input();
 
         if (empty($input)) {
             return $this->jsonBody = [];

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Quill;
+namespace Quill\Validation;
 
 /**
  * ValidationException — thrown when DTO validation fails.

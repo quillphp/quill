@@ -6,8 +6,9 @@ namespace Quill\Tests;
 
 use PHPUnit\Framework\TestCase;
 use Quill\App;
-use Quill\Request;
-use Quill\ValidationException;
+use Quill\Http\Request;
+use Quill\Http\HttpResponse;
+use Quill\Validation\ValidationException;
 
 class AppTest extends TestCase
 {
@@ -17,7 +18,7 @@ class AppTest extends TestCase
      */
     private function makeApp(array $config = []): App
     {
-        return new App(array_merge(['route_cache' => false, 'debug' => false, 'env' => 'prod'], $config));
+        return new App(array_merge(['route_cache' => false, 'debug' => true, 'env' => 'dev'], $config));
     }
 
     /**
@@ -125,7 +126,7 @@ class AppTest extends TestCase
 
         $app = $this->makeApp();
         $app->post('/users', function () {
-            return \Quill\HttpResponse::created(['id' => 1]);
+            return HttpResponse::created(['id' => 1]);
         });
 
         $res = $this->runHandle($app);
@@ -139,7 +140,7 @@ class AppTest extends TestCase
         $_SERVER['REQUEST_URI']    = '/users/1';
 
         $app = $this->makeApp();
-        $app->delete('/users/{id}', fn() => \Quill\HttpResponse::noContent());
+        $app->delete('/users/{id}', fn() => HttpResponse::noContent());
 
         ob_start();
         $app->handle();
@@ -200,4 +201,3 @@ class AppTest extends TestCase
         $this->assertEquals('DELETE', $handlers[5][0]); $this->assertEquals('/users/{id}', $handlers[5][1]);
     }
 }
-

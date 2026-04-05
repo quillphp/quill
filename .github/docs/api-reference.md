@@ -20,7 +20,7 @@ The main application orchestrator.
 | `resource`| `(string $path, string $class): void`| Register a full RESTful resource |
 | `use` | `(callable $middleware): void` | Register global middleware |
 | `boot` | `(): void` | Compile internal state (called automatically) |
-| `run` | `(): void` | Start the server (Swoole, FrankenPHP, etc.) |
+| `run` | `(): void` | Start the server (Quill Binary Core) |
 | `setLogger`| `(?Logger $logger): void` | Update the logger at runtime |
 | `getLogger`| `(): ?Logger` | Get the active logger instance |
 
@@ -50,13 +50,13 @@ Wrapper for generating JSON responses.
 
 ```php
 // Status 200 (Default)
-return new \Quill\HttpResponse(['success' => true]);
+return new \Quill\Http\HttpResponse(['success' => true]);
 
 // Status 201 Created
-return new \Quill\HttpResponse(['id' => 1], 201);
+return new \Quill\Http\HttpResponse(['id' => 1], 201);
 
 // Status 404 Not Found
-return new \Quill\HttpResponse(['error' => 'User not found'], 404);
+return new \Quill\Http\HttpResponse(['error' => 'User not found'], 404);
 ```
 
 ---

@@ -7,7 +7,7 @@ namespace Quill\Tests;
 use PHPUnit\Framework\TestCase;
 use Quill\App;
 use Quill\OpenApi;
-use Quill\DTO;
+use Quill\Validation\DTO;
 
 class MockOpenApiDTO extends DTO
 {

@@ -6,7 +6,7 @@ namespace Quill\Tests;
 
 use PHPUnit\Framework\TestCase;
 use Quill\Pipeline;
-use Quill\Request;
+use Quill\Http\Request;
 
 class MiddlewareTest extends TestCase
 {

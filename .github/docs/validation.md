@@ -13,7 +13,7 @@ DTOs are plain PHP classes with typed constructor properties and validation attr
 
 namespace Dtos;
 
-use Quill\DTO;
+use Quill\Validation\DTO;
 use Quill\Attributes\Required;
 use Quill\Attributes\Email;
 use Quill\Attributes\MinLength;
@@ -69,7 +69,7 @@ class CreateUserDto extends DTO
 namespace Handlers;
 
 use Dtos\CreateUserDto;
-use Quill\Request;
+use Quill\Http\Request;
 
 class UserHandler
 {

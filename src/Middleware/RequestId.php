@@ -6,8 +6,8 @@ namespace Quill\Middleware;
 
 use Quill\Contracts\MiddlewareInterface;
 use Quill\Contracts\ConfigurableMiddleware;
-use Quill\Request;
-use Quill\HttpResponse;
+use Quill\Http\Request;
+use Quill\Http\HttpResponse;
 
 class RequestId implements MiddlewareInterface
 {

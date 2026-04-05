@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Quill\Concerns;
 
-use Quill\Response;
-use Quill\HtmlResponse;
-use Quill\HttpResponse;
+use Quill\Http\Response;
+use Quill\Http\HtmlResponse;
+use Quill\Http\HttpResponse;
 
 /**
  * response sending logic for the App class.
@@ -37,9 +37,12 @@ trait HandlesResponses
             return;
         }
 
-        // Hot path: non-empty result → always 200.
         if (!empty($result)) {
-            $response->json($result);
+            $status = 200;
+            if (is_array($result) && isset($result['status']) && is_scalar($result['status'])) {
+                $status = (int)$result['status'];
+            }
+            $response->json($result, $status);
             return;
         }
 

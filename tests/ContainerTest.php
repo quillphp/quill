@@ -6,7 +6,7 @@ namespace Tests;
 
 use PHPUnit\Framework\TestCase;
 use Quill\App;
-use Quill\Request;
+use Quill\Http\Request;
 use Psr\Container\ContainerInterface;
 
 class ContainerTest extends TestCase

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Quill\Contracts;
 
-use Quill\Request;
+use Quill\Http\Request;
 
 interface MiddlewareInterface
 {

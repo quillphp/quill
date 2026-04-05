@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Quill\Middleware;
 
-use Quill\Request;
-use Quill\HttpResponse;
+use Quill\Http\Request;
+use Quill\Http\HttpResponse;
 
 /**
  * Defensive HTTP headers middleware.

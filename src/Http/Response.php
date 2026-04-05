@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Quill;
+namespace Quill\Http;
+
+use Quill\Runtime\Json;
 
 /**
  * Native output strategy for Quill responses.
@@ -56,10 +58,8 @@ class Response
     {
         $this->status = $status;
 
-        // headers_sent() is false in CLI/Swoole and before first echo in FrankenPHP,
-        // so header() is always called — enabling headers_list() to work in all SAPIs.
+        http_response_code($status);
         if (!headers_sent()) {
-            http_response_code($status);
             header('Content-Type: application/json');
             foreach ($this->headers as $name => $value) {
                 header("$name: $value");
@@ -69,7 +69,7 @@ class Response
         }
 
         if (!$this->headOnly) {
-            $body = json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+            $body = Json::encode($data);
             $this->bytesSent += strlen($body);
             echo $body;
         }
@@ -84,8 +84,8 @@ class Response
     {
         $this->status = $status;
 
+        http_response_code($status);
         if (!headers_sent()) {
-            http_response_code($status);
             header('Content-Type: text/html');
             foreach ($this->headers as $name => $value) {
                 header("$name: $value");

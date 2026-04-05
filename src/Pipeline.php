@@ -3,22 +3,23 @@
 declare(strict_types=1);
 
 namespace Quill;
- 
- use Psr\Container\ContainerInterface;
+
+use Psr\Container\ContainerInterface;
+use Quill\Http\Request;
 
 /**
  * Middleware Pipeline - Implementation of the "Onion" pattern.
  */
 class Pipeline
 {
-    /** @var array<mixed> */
+    /** @var array<callable|class-string|object> */
     private array $middlewares = [];
     private ?ContainerInterface $container = null;
 
     /**
      * Add middleware to the stack.
      *
-     * @param array<callable|class-string> $middlewares
+     * @param array<callable|class-string|object> $middlewares
      */
     public function send(array $middlewares): self
     {
@@ -36,7 +37,6 @@ class Pipeline
      */
     public function then(Request $request, \Closure $destination): mixed
     {
-        // Fast path: no middlewares — skip array_reduce + closure allocation entirely.
         if (empty($this->middlewares)) {
             return $destination($request);
         }

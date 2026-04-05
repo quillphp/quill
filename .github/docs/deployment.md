@@ -1,101 +1,59 @@
 # Deployment Guide
 
-QuillPHP is built for performance and supports several worker-native runtimes.
+QuillPHP is built for self-contained binary deployment. By avoiding traditional SAPIs like FPM, deployment is simplified to running the Quill Binary Server directly.
 
-## Swoole (Recommended)
+## Deployment Workflow
 
-Install the Swoole extension (NTS PHP for JIT support):
-
-```bash
-pecl install swoole
-```
-
-Run with `SWOOLE_BASE` mode on Linux for highest throughput:
+### 1. Build and Prepare
+Ensure the Quill Binary Core for your target OS is in the `bin/` directory.
 
 ```bash
-SWOOLE_WORKERS=8 \
-SWOOLE_PORT=8080 \
-SWOOLE_MODE=base \
-php public/index.php
+# Verify the binary core is accessible
+ls bin/libquill.*
 ```
 
-### Environment Variables
-
-| Variable | Default | Description |
-|---|---|---|
-| `SWOOLE_WORKERS` | `swoole_cpu_num()` | Number of worker processes |
-| `SWOOLE_PORT` | `8080` | Listening port |
-| `SWOOLE_MODE` | `process` | `base` (Linux) or `process` (macOS/Docker) |
-| `SWOOLE_MAX_REQUEST`| `0` | Worker recycle after N requests (0 = disabled) |
-| `QUILL_GC_INTERVAL` | `500` | Run GC every N requests (0 = disabled) |
-
----
-
-## FrankenPHP
-
-Docker configuration for FrankenPHP:
-
-```dockerfile
-FROM dunglas/frankenphp
-
-COPY . /app
-WORKDIR /app
-
-RUN composer install --no-dev --optimize-autoloader --classmap-authoritative
-
-CMD ["frankenphp", "run", "--config", "Caddyfile"]
-```
-
-Example `Caddyfile`:
-
-```caddyfile
-{
-    frankenphp
-}
-
-:8080 {
-    root * /app/public
-    php_server
-}
-```
-
----
-
-## Docker (Swoole)
-
-```dockerfile
-FROM php:8.3-cli
-
-RUN pecl install swoole && docker-php-ext-enable swoole \
-    && curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
-
-WORKDIR /app
-COPY . .
-RUN composer install --no-dev --optimize-autoloader --classmap-authoritative
-
-EXPOSE 8080
-CMD ["sh", "-c", "SWOOLE_WORKERS=${SWOOLE_WORKERS:-4} SWOOLE_MODE=base php public/index.php"]
-```
-
----
-
-## Production OPcache (php.ini)
+### 2. Configure Opcache Preload
+For maximum performance, we recommend preloading the Application and Lifecycle code:
 
 ```ini
-opcache.enable=1
-opcache.enable_cli=1
-opcache.memory_consumption=256
-opcache.interned_strings_buffer=16
-opcache.max_accelerated_files=20000
-opcache.validate_timestamps=0     ; disable in production — reload on deploy
-opcache.revalidate_freq=0
-opcache.jit=tracing               ; NTS PHP only
-opcache.jit_buffer_size=128M
+# opcache.ini
+opcache.preload=/var/www/scripts/preload.php
+opcache.preload_user=www-data
 ```
 
----
+### 3. Native Binary Server
+Run the production server using the Quill CLI.
 
-## What's Next?
+```bash
+# Serve with multiple workers (Linux/macOS)
+QUILL_WORKERS=8 php bin/quill serve --port=80
+```
 
-- Review the **[Configuration Reference](configuration.md)**.
-- Explore the **[API Reference](api-reference.md)**.
+## Docker Deployment
+
+The recommended approach is a multi-stage Docker build that includes the PHP runtime and the Quill Binary Core.
+
+```dockerfile
+# Dockerfile
+FROM php:8.3-cli-alpine
+
+# Install FFI and other requirements
+RUN apk add --no-cache libffi-dev && \
+    docker-php-ext-install ffi
+
+# Copy application and binary core
+COPY . /var/www
+WORKDIR /var/www
+
+# Launch the server
+CMD ["php", "bin/quill", "serve", "--port=80"]
+```
+
+## Security Hardening
+
+To secure your production instance, follow these best practices:
+
+- **Resource Limits**: Configured via the Quill CLI or OS-level limits (e.g., `ulimit -n 65535`).
+- **Binary Hardening**: Ensure `libquill.so` is owned by `root` with `755` permissions.
+- **Process Isolation**: Run the Quill process as a non-privileged user (e.g., `www-data`).
+- **Reverse Proxy**: While Quill serves HTTP directly, we recommend using **Nginx** or **Traefik** as a reverse proxy for TLS termination and global rate limiting.

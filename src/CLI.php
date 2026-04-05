@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace Quill;
 
+use Quill\Http\Request;
+use Quill\Http\HttpResponse;
+use Quill\Validation\DTO;
+
 /**
  * Modern CLI Orchestrator for Quill (2026).
  * Zero-dependency, high-performance terminal interface.
@@ -25,7 +29,6 @@ class CLI
     private array $commands = [
         'serve'           => 'Start the development server (default: 8000)',
         'routes'          => 'List all registered application routes',
-        'benchmark'       => 'Run the internal performance benchmarking suite',
         'make:controller' => 'Create a new controller/handler class',
         'make:dto'        => 'Create a new DTO class',
         'make:middleware' => 'Create a new middleware class',
@@ -48,7 +51,6 @@ class CLI
             'menu'            => $this->showMenu(),
             'serve'           => $this->serve($argv[2] ?? '8000'),
             'routes'          => $this->routes(),
-            'benchmark'       => $this->benchmark(),
             'make:handler'    => $this->makeHandler($argv[2] ?? null),
             'make:controller' => $this->makeHandler($argv[2] ?? null),
             'make:dto'        => $this->makeDTO($argv[2] ?? null),
@@ -67,14 +69,13 @@ class CLI
 
     private function showMenu(): void
     {
-        echo "\n " . $this->color("⚡ Quill 1.0.0", "bold") . " — " . $this->color("The Last API Framework", "dim") . "\n";
+        echo "\n " . $this->color("Quill 1.0.0", "bold") . " — " . $this->color("The Last API Framework", "dim") . "\n";
         echo " " . str_repeat("─", 50) . "\n\n";
         echo " What would you like to do?\n\n";
         echo " " . $this->color("1.", "dim") . " Launch Dev Server     " . $this->color("./quill serve", "cyan") . "\n";
         echo " " . $this->color("2.", "dim") . " List Routes           " . $this->color("./quill routes", "cyan") . "\n";
-        echo " " . $this->color("3.", "dim") . " Run Benchmarks        " . $this->color("./quill benchmark", "cyan") . "\n";
-        echo " " . $this->color("4.", "dim") . " Create Controller     " . $this->color("./quill make:controller", "cyan") . "\n\n";
-        echo " " . $this->color("ℹ Tip:", "bold") . " Type " . $this->color("./quill help", "green") . " for the full list of commands.\n\n";
+        echo " " . $this->color("3.", "dim") . " Create Controller     " . $this->color("./quill make:controller", "cyan") . "\n\n";
+        echo " " . $this->color("[TIP]:", "bold") . " Type " . $this->color("./quill help", "green") . " for the full list of commands.\n\n";
     }
 
     private function showHelp(): void
@@ -90,7 +91,7 @@ class CLI
 
     private function suggest(string $input): void
     {
-        echo "\n " . $this->color("✖ Error:", "red") . " Command " . $this->color($input, "bold") . " not found.\n";
+        echo "\n " . $this->color("[ERROR]:", "red") . " Command " . $this->color($input, "bold") . " not found.\n";
         
         $best = null;
         $shortest = 3;
@@ -104,27 +105,33 @@ class CLI
         }
 
         if ($best) {
-            echo " " . $this->color("ℹ Did you mean:", "cyan") . " " . $this->color($best, "green") . "?\n\n";
+            echo " " . $this->color("[TIP]:", "cyan") . " " . $this->color($best, "green") . "?\n\n";
         }
     }
 
     private function serve(string $port): void
     {
-        echo "\n " . $this->color("✓", "green") . " Quill development server started on " . $this->color("http://localhost:$port", "bold") . "\n";
-        echo " " . $this->color("⚡ Path:", "dim") . " public/index.php\n";
-        echo " " . $this->color("ℹ Press Ctrl+C to stop.", "dim") . "\n\n";
-        passthru(PHP_BINARY . " -S localhost:$port " . __DIR__ . "/../public/index.php");
+        putenv("QUILL_PORT=$port");
+        putenv("QUILL_RUNTIME=rust");
+        
+        $app = new App(['route_cache' => false]);
+        if (file_exists(getcwd() . '/routes.php')) {
+            require getcwd() . '/routes.php';
+        }
+
+        $app->run();
     }
 
     private function routes(): void
     {
         putenv('APP_ENV=dev');
         $app = new App(['route_cache' => false]);
+        $app->boot();
         if (file_exists(__DIR__ . '/../routes.php')) {
             require __DIR__ . '/../routes.php';
         }
         
-        $handlers = $app->getHandlers();
+        $handlers = $app->getRouter()->getRoutes();
         echo "\n " . $this->color("Quill Registered Routes", "bold") . "\n";
         echo " " . str_repeat("─", 80) . "\n";
         printf(" %-10s │ %-30s │ %-30s\n", "METHOD", "PATH", "HANDLER");
@@ -145,11 +152,6 @@ class CLI
         echo " " . str_repeat("─", 80) . "\n\n";
     }
 
-    private function benchmark(): void
-    {
-        (new Internal\Benchmark())->run();
-    }
-
     private function makeHandler(?string $name): void
     {
         $name = $this->validateName($name, 'Handler');
@@ -160,8 +162,8 @@ declare(strict_types=1);
 
 namespace Handlers;
 
-use Quill\Request;
-use Quill\HttpResponse;
+use Quill\Http\Request;
+use Quill\Http\HttpResponse;
 
 class $name
 {
@@ -185,7 +187,7 @@ declare(strict_types=1);
 
 namespace Dtos;
 
-use Quill\DTO;
+use Quill\Validation\DTO;
 
 /**
  * Modern DTO for Quill.
@@ -209,10 +211,15 @@ declare(strict_types=1);
 
 namespace Middlewares;
 
-use Quill\Request;
+use Quill\Http\Request;
 
 class $name
 {
+    /**
+     * @param Request \$request
+     * @param callable \$next
+     * @return mixed
+     */
     public function handle(Request \$request, callable \$next): mixed
     {
         // Pre-processing...
@@ -247,7 +254,7 @@ PHP;
     private function validateName(?string $name, string $suffix): string
     {
         if (!$name) {
-            echo "\n " . $this->color("✖ Error:", "red") . " $suffix name required (e.g., User$suffix)\n\n";
+            echo "\n " . $this->color("[ERROR]:", "red") . " $suffix name required (e.g., User$suffix)\n\n";
             exit(1);
         }
         if (!str_ends_with($name, $suffix)) $name .= $suffix;
@@ -258,13 +265,13 @@ PHP;
     {
         $path = __DIR__ . "/../$relativePath";
         if (file_exists($path)) {
-            echo "\n " . $this->color("✖ Error:", "red") . " File " . $this->color($relativePath, "bold") . " already exists.\n\n";
+            echo "\n " . $this->color("[ERROR]:", "red") . " File " . $this->color($relativePath, "bold") . " already exists.\n\n";
             exit(1);
         }
 
         if (!is_dir(dirname($path))) mkdir(dirname($path), 0755, true);
         file_put_contents($path, $content);
-        echo "\n " . $this->color("✓", "green") . " Created: " . $this->color($relativePath, "bold") . "\n\n";
+        echo "\n " . $this->color("[OK]", "green") . " Created: " . $this->color($relativePath, "bold") . "\n\n";
     }
 
     private function completion(string $shell): void

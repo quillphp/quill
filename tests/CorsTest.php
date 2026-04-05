@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Quill\Tests;
 
 use PHPUnit\Framework\TestCase;
-use Quill\Cors;
-use Quill\Request;
+use Quill\Http\Cors;
+use Quill\Http\Request;
 
 class CorsTest extends TestCase
 {
