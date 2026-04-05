@@ -10,6 +10,7 @@ use Quill\Routing\Router;
 final class Runtime
 {
     private static ?\FFI $ffi = null;
+    private static ?DriverInterface $driver = null;
     private static bool $available = false;
     /** @phpstan-ignore-next-line */
     private static bool $initialized = false;
@@ -118,6 +119,14 @@ final class Runtime
         return self::$ffi;
     }
 
+    public static function getDriver(): DriverInterface
+    {
+        if (self::$driver === null) {
+            self::$driver = new NativeDriver(self::get());
+        }
+        return self::$driver;
+    }
+
     /** Reset for testing only — do not call in production code. */
     public static function reset(): void
     {
@@ -126,6 +135,7 @@ final class Runtime
         }
 
         self::$ffi = null;
+        self::$driver = null;
         self::$available = false;
         self::$initialized = false;
     }
