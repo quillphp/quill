@@ -33,6 +33,7 @@ class CLI
         'make:dto'        => 'Create a new DTO class',
         'make:middleware' => 'Create a new middleware class',
         'make:exception'  => 'Create a new custom exception',
+        'benchmark'       => 'Run high-performance HTTP benchmark suite',
         'completion'      => 'Generate shell completion script (zsh/bash)',
         'help'            => 'Show this help message',
     ];
@@ -56,6 +57,7 @@ class CLI
             'make:dto'        => $this->makeDTO($argv[2] ?? null),
             'make:middleware' => $this->makeMiddleware($argv[2] ?? null),
             'make:exception'  => $this->makeException($argv[2] ?? null),
+            'benchmark'       => $this->benchmark(),
             'completion'      => $this->completion($argv[2] ?? 'zsh'),
             'help'            => $this->showHelp(),
             default           => null,
@@ -291,5 +293,16 @@ EOD;
         } else {
             echo "# Auto-completion currently only supports ZSH (default for Mac).\n";
         }
+    }
+
+    private function benchmark(): void
+    {
+        $script = __DIR__ . '/../scripts/http-bench.sh';
+        if (!file_exists($script)) {
+            echo "\n " . $this->color("[ERROR]:", "red") . " Benchmark script not found at " . $this->color("scripts/http-bench.sh", "bold") . "\n\n";
+            exit(1);
+        }
+
+        passthru("bash " . escapeshellarg($script));
     }
 }
