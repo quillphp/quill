@@ -16,6 +16,9 @@ use Quill\Validation\Validator;
 final class Server
 {
     private Router $router;
+    private int $port;
+    /** @var mixed */
+    private $validator;
     /** @var mixed Shared reference to the FFI callback to prevent GC */
     private $callback;
 
@@ -29,9 +32,18 @@ final class Server
      */
     public function start(int $port = 8080): void
     {
+        $this->port = $port;
+        $this->validator = \Quill\Validation\Validator::getRegistry();
         $ffi = Runtime::get();
 
+        // 1. Check for FFI::callback support (Portability Fallback for CI/CD)
         /** @phpstan-ignore-next-line */
+        if (!method_exists(\FFI::class, 'callback')) {
+            $fallback = new SocketServer($this->router->getHandle(), $this->validator, $this->port);
+            $fallback->start();
+            return;
+        }
+
         /** @phpstan-ignore-next-line */
         $this->callback = \FFI::callback(
             'int (*)(uint32_t, char*, char*, char*, uint32_t)',
