@@ -31,9 +31,24 @@ jobs:
             const pr = context.payload.pull_request;
             if (!pr) return core.setFailed("No Pull Request context found.");
             const body = pr.body || "";
-            if (!body.includes("## Checklist")) return core.setFailed("Pull Request is missing the '## Checklist' section.");
-            const unchecked = (body.match(/- \[ \] /g) || []).length;
-            if (unchecked > 0) return core.setFailed(`There are ${unchecked} unchecked items in the PR checklist. Please fulfill all required items.`);
+
+            // Split body into sections by ## headers
+            const sections = body.split(/^## /m);
+            const checklistSection = sections.find(s => s.toLowerCase().startsWith("checklist"));
+            const typeSection = sections.find(s => s.toLowerCase().startsWith("type of change"));
+
+            // 1. Validate Checklist Section (Mandatory & All must be checked)
+            if (!checklistSection) return core.setFailed("Pull Request description is missing the '## Checklist' section.");
+            const unchecked = (checklistSection.match(/- \[ \] /g) || []).length;
+            if (unchecked > 0) return core.setFailed(`There are ${unchecked} unchecked items in your '## Checklist'. Please ensure all project standards are met.`);
+
+            // 2. Validate Type of Change (At least one must be checked)
+            if (typeSection) {
+              const checked = (typeSection.match(/- \[x\] /gi) || []).length;
+              if (checked === 0 && typeSection.includes("- [ ] ")) {
+                return core.setFailed("Please select at least one 'Type of change' or follow the template instructions to delete irrelevant options.");
+              }
+            }
 
   test:
     name: Tests (Pest) — PHP ${{ matrix.php }}
