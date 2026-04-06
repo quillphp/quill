@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests;
+namespace Quill\Tests;
 
 use PHPUnit\Framework\TestCase;
 use Quill\App;
