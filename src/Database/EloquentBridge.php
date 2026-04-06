@@ -45,9 +45,9 @@ class EloquentBridge
         $capsule->bootEloquent();
 
         // 5. Register in container if provided
-        if ($container && method_exists($container, 'set')) {
-            $container->set('db', $capsule->getDatabaseManager());
-            $container->set(Capsule::class, $capsule);
+        if ($container && method_exists($container, 'singleton')) {
+            $container->singleton('db', $capsule->getDatabaseManager());
+            $container->singleton(Capsule::class, $capsule);
         }
 
         return $capsule;

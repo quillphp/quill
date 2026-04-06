@@ -12,7 +12,7 @@ use PHPUnit\Framework\Attributes\RequiresPhp;
 
 class DatabaseTest extends TestCase
 {
-    #[RequiresPhp('8.3')]
+    /** @return void */
     public function testEloquentBridgeBoot(): void
     {
         if (!class_exists('Illuminate\Database\Capsule\Manager')) {

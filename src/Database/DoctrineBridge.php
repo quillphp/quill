@@ -35,9 +35,9 @@ class DoctrineBridge
         $entityManager = new EntityManager($connection, $setup);
 
         // Register in container if provided
-        if ($container && method_exists($container, 'set')) {
-            $container->set(EntityManager::class, $entityManager);
-            $container->set(\Doctrine\ORM\EntityManagerInterface::class, $entityManager);
+        if ($container && method_exists($container, 'singleton')) {
+            $container->singleton(EntityManager::class, $entityManager);
+            $container->singleton(\Doctrine\ORM\EntityManagerInterface::class, $entityManager);
         }
 
         return $entityManager;
