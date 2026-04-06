@@ -4,6 +4,10 @@ parameters:
         - src
         - tests
         - public
+    scanDirectories:
+        - ../plugins/quill-container/src
+        - ../plugins/quill-cache/src
+        - ../plugins/quill-testing/src
     bootstrapFiles:
         - vendor/autoload.php
     reportUnmatchedIgnoredErrors: false
