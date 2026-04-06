@@ -13,6 +13,7 @@ use Quill\Runtime\Server;
 use Quill\Concerns\HandlesExceptions;
 use Quill\Concerns\HandlesRouting;
 use Quill\Concerns\HandlesResponses;
+use Quill\Container\Container;
 
 /**
  * The Quill Application Kernel.
@@ -46,6 +47,10 @@ class App
         $cacheFile = (isset($config['cache_file']) && is_scalar($config['cache_file'])) ? (string)$config['cache_file'] : null;
         $this->router = new Router($cacheFile);
         $this->pipeline = new Pipeline();
+
+        if ($this->container === null) {
+            $this->setContainer(new Container());
+        }
     }
 
     public function boot(): void
@@ -123,6 +128,22 @@ class App
         $this->container = $container;
         $this->router->setContainer($container);
         $this->pipeline->setContainer($container);
+        return $this;
+    }
+
+    public function singleton(string $id, mixed $concrete = null): static
+    {
+        if ($this->container instanceof Container) {
+            $this->container->singleton($id, $concrete);
+        }
+        return $this;
+    }
+
+    public function bind(string $id, mixed $concrete = null, bool $singleton = false): static
+    {
+        if ($this->container instanceof Container) {
+            $this->container->bind($id, $concrete, $singleton);
+        }
         return $this;
     }
 

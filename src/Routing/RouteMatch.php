@@ -101,7 +101,7 @@ class RouteMatch
                     throw new \RuntimeException("Handler class '{$class}' not found.");
                 }
                 /** @var object $instance */
-                $instance = $this->instanceCache[$class] ??= new $class();
+                $instance = new $class();
             }
 
             if (!is_object($instance) || !method_exists($instance, $method)) {

@@ -37,6 +37,9 @@
     "autoload": {
         "psr-4": {
             "Quill\\": "src/",
+            "Quill\\Container\\": "../plugins/quill-container/src/",
+            "Quill\\Testing\\": "../plugins/quill-testing/src/",
+            "Quill\\Cache\\": "../plugins/quill-cache/src/",
             "Quill\\Attributes\\": "attributes/",
             "Handlers\\": "handlers/",
             "Dtos\\": "dtos/",
