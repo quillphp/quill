@@ -29,9 +29,8 @@ class ValidatorTest extends TestCase
         
         Validator::reinitialize();
         
-        // Cache should be empty after reinitialize (if Runtime not available)
-        // or re-filled if it was available (but here it's not)
-        $this->assertEmpty($ref->getValue());
+        // Cache should be KEPT after reinitialize to avoid redundant reflection (RC-1)
+        $this->assertNotEmpty($ref->getValue());
     }
 
     #[Test]

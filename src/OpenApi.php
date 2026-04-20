@@ -20,6 +20,21 @@ class OpenApi
      */
     public function generate(array $handlers): array
     {
+        $cachePath = getcwd() . '/tmp/cache';
+        $cacheFile = $cachePath . '/openapi.json';
+        $routesFile = getcwd() . '/routes.php';
+
+        // ENH-3: Cache validation via mtime
+        if (file_exists($cacheFile) && file_exists($routesFile)) {
+            if (filemtime($cacheFile) >= filemtime($routesFile)) {
+                $cached = json_decode((string)file_get_contents($cacheFile), true);
+                if (is_array($cached)) {
+                    /** @var array<string, mixed> $cached */
+                    return $cached;
+                }
+            }
+        }
+
         $openapi = [
             'openapi' => '3.1.0',
             'info' => [
@@ -69,6 +84,12 @@ class OpenApi
             $paths[$normalizedPath][$method] = $operation;
             $openapi['paths'] = $paths;
         }
+
+        // ENH-3: Save generated schema to cache
+        if (!is_dir(dirname($cacheFile))) {
+            mkdir(dirname($cacheFile), 0755, true);
+        }
+        file_put_contents($cacheFile, json_encode($openapi, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
 
         return $openapi;
     }

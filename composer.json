@@ -27,7 +27,7 @@
         "quillphp/cache": "^0.0.1",
         "quillphp/container": "^0.0.1",
         "quillphp/eloquent": "^0.0.1",
-        "quillphp/quill-core": "^0.0.2",
+        "quillphp/quill-core": "^0.0.3",
         "vlucas/phpdotenv": "^5.6"
     },
     "require-dev": {

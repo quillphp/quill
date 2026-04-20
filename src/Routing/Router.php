@@ -56,11 +56,18 @@ class Router
             return;
         }
 
-        $paramCacheFile = $this->cacheFile ? $this->cacheFile . '.params' : null;
+        $paramCacheFile = $this->cacheFile ? $this->cacheFile . '.params.php' : null;
+        $routesFile = getcwd() . '/routes.php';
+        $needsCompile = true;
 
-        if ($paramCacheFile && file_exists($paramCacheFile)) {
-            $this->paramCache = (array)require $paramCacheFile;
-        } else {
+        if ($paramCacheFile && file_exists($paramCacheFile) && file_exists($routesFile)) {
+            if (filemtime($paramCacheFile) >= filemtime($routesFile)) {
+                $this->paramCache = (array)require $paramCacheFile;
+                $needsCompile = false;
+            }
+        }
+
+        if ($needsCompile) {
             $this->buildParamCache();
             if ($paramCacheFile) {
                 file_put_contents($paramCacheFile, "<?php return " . var_export($this->paramCache, true) . ";");
@@ -118,7 +125,7 @@ class Router
                 'type'         => $typeName,
                 'isBuiltin'    => $type instanceof \ReflectionNamedType ? $type->isBuiltin() : true,
                 'isDTO'        => $isDTO,
-                'isRequest'    => $typeName === Request::class,
+                'isRequest'    => ($typeName === Request::class || is_subclass_of((string)$typeName, Request::class)),
                 'hasDefault'   => $param->isDefaultValueAvailable(),
                 'defaultValue' => $param->isDefaultValueAvailable() ? $param->getDefaultValue() : null,
             ];
@@ -246,27 +253,25 @@ class Router
     }
 
     /**
-     * Free the existing Rust handle and recompile from scratch.
-     * Called by each forked worker process so every process owns an independent
-     * Arc<QuillRouter> in its own Rust heap instead of sharing a COW copy.
+     * Recompile the router handle if not already initialized.
      */
     public function recompile(): void
     {
         if ($this->handle !== null) {
-            $ffi = Runtime::get();
-            /** @phpstan-ignore-next-line */
-            $ffi->quill_router_free($this->handle);
-            $this->handle = null;
+            return;
         }
         $this->compile();
     }
 
     public function __destruct()
     {
-        if ($this->handle !== null) {
-            $ffi = Runtime::get();
-            /** @phpstan-ignore-next-line */
-            $ffi->quill_router_free($this->handle);
+        if ($this->handle !== null && Runtime::isStarted()) {
+            try {
+                $ffi = Runtime::get();
+                /** @phpstan-ignore-next-line */
+                $ffi->quill_router_free($this->handle);
+            } catch (\Throwable) {
+            }
             $this->handle = null;
         }
     }

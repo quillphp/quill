@@ -5,22 +5,13 @@ declare(strict_types=1);
 namespace Quill\Runtime;
 
 use Quill\Routing\Router;
-use Quill\Http\Request;
+use Quill\Request;
 use Quill\Routing\RouteMatch;
 use Quill\Validation\Validator;
+use Quill\Runtime\Json;
 
 /**
- * Quill Runtime Server
- *
- * Multi-worker architecture:
- *  1. The parent forks (QUILL_WORKERS - 1) child processes BEFORE any Rust
- *     resources are created.
- *  2. Each process (parent + children) independently calls recompile() and
- *     reinitialize() so every worker owns its own Arc<QuillRouter> and
- *     Arc<ValidatorRegistry> in its own Rust heap.
- *  3. SO_REUSEPORT lets every worker bind the same TCP port; the kernel
- *     distributes incoming connections between them.
- *  4. Each worker runs its own tight polling loop.
+ * Quill Runtime Server handling multi-worker orchestration via pcntl_fork.
  */
 final class Server
 {
@@ -43,10 +34,10 @@ final class Server
         int $dtoBufferSize = 65536,
         int $errorBufferSize = 4096
     ) {
-        $this->router          = $router;
-        $this->driver          = $driver ?: Runtime::getDriver();
-        $this->logger          = $logger;
-        $this->dtoBufferSize   = $dtoBufferSize;
+        $this->router = $router;
+        $this->driver = $driver ?: Runtime::getDriver();
+        $this->logger = $logger;
+        $this->dtoBufferSize = $dtoBufferSize;
         $this->errorBufferSize = $errorBufferSize;
     }
 
@@ -55,14 +46,22 @@ final class Server
     public function start(int $port = 8080): void
     {
         $this->port = $port;
-        $nWorkers   = max(1, (int) (getenv('QUILL_WORKERS') ?: 1));
+
+        $workersCount = (int) (getenv('QUILL_WORKERS') ?: 1);
+        $logPath = getenv('QUILL_LOG') ?: 'off';
+        
+        if ($logPath === 'true' || $logPath === '1') {
+            $logPath = 'storage/logs/quill.log';
+        }
+
+        echo "  \x1B[1mPort\x1B[0m       : \x1B[35m{$this->port}\x1B[0m\n";
+        echo "  \x1B[1mWorkers\x1B[0m    : \x1B[35m{$workersCount}\x1B[0m\n";
+        echo "  \x1B[1mRuntime\x1B[0m    : \x1B[32mRust Fast-Path\x1B[0m\n";
+        echo "  \x1B[1mLogging\x1B[0m    : \x1B[36m{$logPath}\x1B[0m\n\n";
+
+        $nWorkers = max(1, (int) (getenv('QUILL_WORKERS') ?: 1));
 
         if ($nWorkers > 1 && function_exists('pcntl_fork')) {
-            // Attempt to pre-bind the TCP socket ONCE before forking so every
-            // worker shares the same kernel accept queue (optimal path).
-            // quill_server_prebind was added after the initial quill-core release,
-            // so we catch FFI\Exception and fall back gracefully: each worker will
-            // bind its own SO_REUSEPORT socket via the Rust make_listener() path.
             try {
                 $fd = $this->driver->prebind($port);
                 if ($fd < 0) {
@@ -71,8 +70,7 @@ final class Server
             } catch (\RuntimeException $e) {
                 throw $e;
             } catch (\Throwable) {
-                // quill_server_prebind not available in this build of quill-core.
-                // Workers will each bind independently using SO_REUSEPORT.
+                // Fallback: Bind inside worker via SO_REUSEPORT if pre-bind fails
             }
             $this->spawnWorkers($nWorkers);
         } else {
@@ -116,7 +114,7 @@ final class Server
 
                     // Unblock signals before entering the event loop
                     pcntl_sigprocmask(SIG_UNBLOCK, [SIGTERM, SIGINT]);
-                    $this->runEventLoop();
+                    $this->runEventLoop(true);
                 } catch (\Throwable $e) {
                     fwrite(STDERR, "[Worker " . getmypid() . "] Boot failed: {$e->getMessage()}\n");
                     exit(1);
@@ -169,6 +167,106 @@ final class Server
         $this->validator = Validator::getRegistry();
     }
 
+    /**
+     * Pre-register static route responses with the Rust engine.
+     *
+     * For every parameterless, DTO-free route whose handler is a simple static
+     * method or Closure, we execute it once and hand the serialized response to
+     * Rust via quill_route_preload(). Subsequent HTTP requests for that handler
+     * are served entirely within Rust — no PHP round-trip, no channel overhead.
+     *
+     * Failure to preload any route is non-fatal; the PHP bridge remains as the
+     * fallback for routes not successfully preloaded.
+     */
+    private function preloadRoutes(bool $silent = false): void
+    {
+        $routes = $this->router->getRoutes();
+        $paramCache = $this->router->getParamCache();
+        $request = new Request();
+        $preloadedCount = 0;
+
+        foreach ($routes as $handlerId => $routeInfo) {
+            // Only preload routes that have no path parameters recorded in the manifest.
+            $handler = $routeInfo[2] ?? null;
+            if ($handler === null) {
+                continue;
+            }
+
+            $key = $this->resolveHandlerKey($handler);
+            $hasDTO = false;
+            
+            if ($key !== null && isset($paramCache[$key])) {
+                foreach ($paramCache[$key] as $param) {
+                    if ($param['isDTO']) {
+                        $hasDTO = true;
+                        break;
+                    }
+                }
+            }
+
+            if ($hasDTO) {
+                continue;
+            }
+
+            try {
+                $request->reset();
+
+                // Execute the handler once to capture the static response.
+                if ($handler instanceof \Closure) {
+                    $result = $handler($request);
+                } elseif (is_array($handler) && count($handler) === 2) {
+                    [$class, $method] = $handler;
+                    if (!is_callable([$class, $method])) {
+                        continue;
+                    }
+                    $result = $class::$method();
+                } else {
+                    continue;
+                }
+
+                // Build the same response envelope that the polling loop produces.
+                $resultBody = is_string($result) ? $result : Json::encode($result ?? []);
+
+                $responseJson = Json::encode([
+                    'status' => 200,
+                    'headers' => [
+                        'Content-Type' => 'application/json',
+                        'X-Powered-By' => 'Quill',
+                    ],
+                    'body' => $resultBody,
+                ]);
+
+                if ($responseJson === '') {
+                    continue;
+                }
+
+                // ⚡ Push to Rust Core
+                $this->driver->preloadResponse((int) $handlerId, $responseJson);
+                $preloadedCount++;
+            } catch (\Throwable) {
+                // Non-fatal: this route will be served via the PHP bridge.
+            }
+        }
+
+        if (!$silent && $preloadedCount > 0) {
+            echo "  \x1B[1mPreloading\x1B[0m : \x1B[32mDONE\x1B[0m — \x1B[1m{$preloadedCount}\x1B[0m routes optimized via Fast Path\n";
+        }
+    }
+
+    /**
+     * Resolve a unique key for a route handler.
+     */
+    private function resolveHandlerKey(mixed $handler): ?string
+    {
+        if (is_array($handler) && count($handler) === 2 && isset($handler[0], $handler[1]) && is_scalar($handler[0]) && is_scalar($handler[1])) {
+            return "{$handler[0]}::{$handler[1]}";
+        } elseif ($handler instanceof \Closure) {
+            return 'closure_' . spl_object_id($handler);
+        }
+        return null;
+    }
+
+
     // ── Signal handling ───────────────────────────────────────────────────────
 
     /**
@@ -183,13 +281,26 @@ final class Server
         pcntl_async_signals(true);
 
         $stop = function () use ($childPids): void {
+            fwrite(STDOUT, "\n[Process " . getmypid() . "] Received stop signal. Draining queue...\n");
+            $this->running = false;
+            try {
+                $this->driver->drain(100); // 100ms drain timeout
+            } catch (\Throwable) {
+            }
+
             foreach ($childPids as $pid) {
                 posix_kill($pid, SIGTERM);
             }
-            $this->running = false;
+
+            // Allow a small window for children to reap if we are the parent
+            if (!empty($childPids)) {
+                usleep(50000); // 50ms
+            }
+
+            exit(0);
         };
 
-        pcntl_signal(SIGINT,  $stop);
+        pcntl_signal(SIGINT, $stop);
         pcntl_signal(SIGTERM, $stop);
 
         // Reap zombie children automatically (parent only).
@@ -204,7 +315,7 @@ final class Server
 
     // ── Hot polling loop ──────────────────────────────────────────────────────
 
-    private function runEventLoop(): void
+    private function runEventLoop(bool $silent = false): void
     {
         $handle = $this->router->getHandle();
 
@@ -213,101 +324,179 @@ final class Server
         }
 
         /** @phpstan-ignore-next-line */
-        $res = $this->driver->listen($handle, $this->validator, $this->port);
+        $res = (int) $this->driver->listen($handle, $this->validator, $this->port, (int) (getenv('QUILL_WORKERS') ?: 0), 10000);
         if ($res !== 0) {
-            throw new \RuntimeException("Failed to listen on port {$this->port} (code: {$res})");
+            throw new \RuntimeException("Failed to listen on port {$this->port} (Error Code: {$res}). Possible cause: Port already in use or insufficient permissions.");
         }
 
-        echo '[Worker ' . getmypid() . "] listening on http://0.0.0.0:{$this->port}\n";
+        // Pre-register static route responses with Rust before entering the hot loop.
+        $this->preloadRoutes($silent);
+
+        if (!$silent) {
+            echo "  \x1B[1mListening\x1B[0m  : \x1B[32mhttp://0.0.0.0:{$this->port}\x1B[0m\n\n";
+        }
 
         // Pre-allocate FFI buffers once — reused for every request.
-        $idBuf        = $this->driver->allocateIdBuffer();
+        $idBuf = $this->driver->allocateIdBuffer();
         $handlerIdBuf = $this->driver->allocateHandlerIdBuffer();
-        $paramsBuf    = $this->driver->allocateParamsBuffer($this->errorBufferSize);
-        $dtoBuf       = $this->driver->allocateDtoBuffer($this->dtoBufferSize);
+        $paramsBuf = $this->driver->allocateParamsBuffer($this->errorBufferSize);
+        $dtoBuf = $this->driver->allocateDtoBuffer($this->dtoBufferSize);
 
         $id = 0;
+        $request = new Request();
+        $paramCache = $this->router->getParamCache();
+        $container = $this->router->getContainer();
+        $routes = $this->router->getRoutes();
+
         while ($this->running) {
             /** @phpstan-ignore-next-line */
             $hasRequest = $this->driver->poll($idBuf, $handlerIdBuf, $paramsBuf, $this->errorBufferSize, $dtoBuf, $this->dtoBufferSize);
 
+            if ($hasRequest === -1) {
+                fwrite(STDERR, "[Worker " . getmypid() . "] Native engine panic in poll(). Restarting worker loop...\n");
+                continue;
+            }
+
             if ($hasRequest === 1) {
+                $startTime = microtime(true);
                 try {
-                    /** @var \ArrayAccess<int, int> $idBuf */
-                    $id        = (int)$idBuf[0];
-                    /** @var \ArrayAccess<int, int> $handlerIdBuf */
-                    $handlerId = (int)$handlerIdBuf[0];
+                    /** @phpstan-ignore-next-line */
+                    $id = (int) $idBuf[0];
+                    /** @phpstan-ignore-next-line */
+                    $handlerId = (int) $handlerIdBuf[0];
 
-                    /** @var string $paramsJson */
-                    $paramsJson  = $this->driver->getString($paramsBuf);
-                    /** @var string $dtoDataJson */
-                    $dtoDataJson = $this->driver->getString($dtoBuf);
+                    $paramsJson = (string)$this->driver->getString($paramsBuf);
+                    $dtoDataJson = (string)$this->driver->getString($dtoBuf);
 
-                    $params  = Json::decode($paramsJson);
+                    if ($paramsJson !== '' && str_contains($paramsJson, '"path":"/__quill/metrics"')) {
+                        $this->driver->respond($id, $this->driver->stats());
+                        continue;
+                    }
+                    if ($paramsJson !== '' && str_contains($paramsJson, '"path":"/__quill/health"')) {
+                        $this->driver->respond($id, '{"status":"ok"}');
+                        continue;
+                    }
+
+                    if (strlen($dtoDataJson) >= $this->dtoBufferSize - 1) {
+                        if ($this->logger)
+                            $this->logger->warning("[Worker " . getmypid() . "] DTO buffer saturated.");
+                        else
+                            fwrite(STDERR, "[Worker " . getmypid() . "] Warning: DTO buffer saturated.\n");
+                    }
+
+                    $params = Json::decode($paramsJson);
                     $dtoData = ($dtoDataJson !== 'null' && $dtoDataJson !== '')
                         ? Json::decode($dtoDataJson)
                         : null;
 
-                    $request = new Request();
+                    /** @var Request $request */
+                    $request->reset();
+
+                    // Extract metadata from Rust
+                    $actualMethod = (string)($params['_method'] ?? 'GET');
+                    $actualPath = (string)($params['_path'] ?? '/');
+                    $clientIp = (string)($params['_ip'] ?? '127.0.0.1');
+                    
+                    if (isset($params['_body'])) {
+                        $request->setRawInput((string)$params['_body']);
+                    }
+                    unset($params['_method'], $params['_path'], $params['_ip'], $params['_body']);
+
+                    $_SERVER['REMOTE_ADDR'] = $clientIp;
                     /** @var array<string, string> $params */
                     $request->setPathVars($params);
+                    $request = $request->withMethod($actualMethod)->withPath($actualPath);
 
-                    /** @var array{int, array<string>|(callable(): mixed), array<string, string>} $info */
-                    $info = [1, $this->router->getRoutes()[(int)$handlerId][2], $params];
-                    $routeMatch = new RouteMatch(
-                        $info,
-                        $this->router->getParamCache(),
-                        [],
-                        $this->router->getContainer(),
-                        /** @var array<string, mixed> $dtoData */
-                        $dtoData
-                    );
-
-                    ob_start();
-                    try {
-                        $result = $routeMatch->execute($request);
-                        $bodyContent = ob_get_clean();
-                    } catch (\Throwable $e) {
-                        ob_end_clean();
-                        throw $e;
-                    }
-
-                    $status  = 200;
-                    $headers = [
-                        'Content-Type' => 'application/json',
-                        'X-Powered-By' => 'Quill',
-                    ];
-
-                    if ($result instanceof \Quill\Http\Response) {
-                        $status  = $result->getStatus();
-                        $headers = array_merge($headers, $result->getHeaders());
-                        $resultBody = (string)$bodyContent;
+                    // Fast Path Check: Simple Closure with no complex dependencies
+                    $handler = $routes[(int) $handlerId][2];
+                    if ($handler instanceof \Closure && empty($dtoData) && empty($paramCache['closure_' . spl_object_id($handler)])) {
+                        $result = $handler($request);
+                        $resultBody = is_string($result) ? $result : json_encode($result ?? []);
+                        $status = 200;
+                        $headers = [
+                            'Content-Type' => 'application/json',
+                            'X-Powered-By' => 'Quill/FastPath',
+                        ];
                     } else {
-                        $resultBody = (string)json_encode($result ?? []);
+                        /** @var array{int, array<string>|(callable(): mixed), array<string, string>} $info */
+                        $info = [1, $handler, $params];
+                        $routeMatch = new RouteMatch(
+                            $info,
+                            $paramCache,
+                            [],
+                            $container,
+                            $dtoData
+                        );
+
+                        ob_start();
+                        try {
+                            $result = $routeMatch->execute($request);
+                            $bodyContent = ob_get_clean();
+                        } catch (\Throwable $e) {
+                            if (ob_get_level() > 0)
+                                ob_end_clean();
+                            throw $e;
+                        }
+
+                        $status = 200;
+                        $headers = [
+                            'Content-Type' => 'application/json',
+                            'X-Powered-By' => 'Quill',
+                        ];
+
+                        if ($result instanceof \Quill\Http\Response) {
+                            $status = $result->getStatus();
+                            $headers = array_merge($headers, $result->getHeaders());
+                            $resultBody = (string) $bodyContent;
+                        } else {
+                            $resultBody = (string) json_encode($result ?? []);
+                        }
                     }
 
                     $response = [
-                        'status'  => $status,
+                        'status' => $status,
                         'headers' => $headers,
-                        'body'    => $resultBody,
+                        'body' => $resultBody,
                     ];
 
                     $json = Json::encode($response);
                     /** @phpstan-ignore-next-line */
-                    $this->driver->respond($id, $json);
+                    $res = (int) $this->driver->respond($id, $json);
+
+                    if ($this->logger instanceof \Quill\Logger || $this->logger instanceof \Quill\Runtime\MultiLogger) {
+                        $duration = (microtime(true) - $startTime) * 1000;
+                        /** @phpstan-ignore-next-line */
+                        $this->logger->access(
+                            $clientIp,
+                            $request->method(),
+                            $request->path(),
+                            'HTTP/1.1',
+                            $status,
+                            strlen((string)$resultBody),
+                            '-',
+                            '-',
+                            $duration
+                        );
+                    }
+
+                    if ($res === -1) {
+                        if ($this->logger)
+                            $this->logger->error("[Worker " . getmypid() . "] Failed to send response: Native engine error.");
+                        else
+                            fwrite(STDERR, "[Worker " . getmypid() . "] Failed to send response: Native engine error.\n");
+                    }
                 } catch (\Throwable $e) {
-                    fwrite(STDERR, "[Worker " . getmypid() . "] Execution error: {$e->getMessage()}\n{$e->getTraceAsString()}\n");
+                    if ($this->logger)
+                        $this->logger->error("[Worker " . getmypid() . "] Execution error: {$e->getMessage()}", ['trace' => $e->getTraceAsString()]);
+                    else
+                        fwrite(STDERR, "[Worker " . getmypid() . "] Execution error: {$e->getMessage()}\n{$e->getTraceAsString()}\n");
+
                     $errJson = Json::encode([
                         'status' => 500,
                         'headers' => ['Content-Type' => 'application/json'],
                         'body' => Json::encode(['error' => 'Internal Server Error', 'detail' => $e->getMessage()])
                     ]);
-                    $this->driver->respond((int)$id, $errJson);
-                }
-            } else {
-                // No pending request — yield CPU unless we are in bench mode.
-                if (getenv('APP_ENV') !== 'bench') {
-                    usleep(100);
+                    $this->driver->respond((int) $id, $errJson);
                 }
             }
         }

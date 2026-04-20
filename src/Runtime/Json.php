@@ -16,27 +16,7 @@ final class Json
      */
     public static function encode(mixed $value): string
     {
-        if (!Runtime::isStarted()) {
-            return (string)json_encode($value, JSON_THROW_ON_ERROR);
-        }
-
-        $ffi   = Runtime::get();
-        $input = (string)json_encode($value, JSON_THROW_ON_ERROR);
-        $len   = strlen($input);
-        
-        // Oversize buffer for encoded output
-        $outLen = $len + 1024;
-        /** @var \FFI\CData $outBuf */
-        $outBuf = $ffi->new("char[$outLen]");
-        
-        /** @phpstan-ignore-next-line */
-        $written = $ffi->quill_json_compact($input, $len, $outBuf, $outLen);
-        
-        if ($written === 0) {
-            return $input;
-        }
-
-        return \FFI::string($outBuf, max(0, (int)$written));
+        return (string)json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
     }
 
     /**

@@ -118,7 +118,7 @@ class Response
     {
         return $this->json([
             'status' => $status,
-            'error'  => $message,
+            'error' => $message,
         ], $status);
     }
 }

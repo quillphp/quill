@@ -38,9 +38,12 @@ class App
      */
     public function __construct(array $config = [])
     {
+        // Load environment variables from .env if present
+        \Quill\Support\Env::load(getcwd() . '/.env');
+
         $this->config = array_merge([
-            'env'   => 'prod',
-            'debug' => false,
+            'env'   => \Quill\Support\Env::get('APP_ENV', 'prod'),
+            'debug' => \Quill\Support\Env::get('APP_DEBUG', false),
             'root'  => getcwd(),
         ], $config);
 
@@ -66,9 +69,13 @@ class App
             throw new \RuntimeException("Quill Core (libquill) not found. Please ensure the native engine is installed.");
         }
 
-        // Sync handlers from trait to router
+        // Routes registration
         foreach ($this->getHandlers() as [$method, $path, $handler]) {
             $this->router->addRoute($method, $path, $handler);
+        }
+
+        if (PHP_SAPI === 'cli') {
+            $this->router->compile();
         }
 
         $this->booted = true;
@@ -104,7 +111,6 @@ class App
     private function runWithQuill(): void
     {
         $port = (int)(getenv('QUILL_PORT') ?: 8080);
-        $this->router->compile();
         
         $dtoBufferSize = (isset($this->config['ffi_dto_buffer_size']) && is_numeric($this->config['ffi_dto_buffer_size'])) 
             ? (int)$this->config['ffi_dto_buffer_size'] 
@@ -113,7 +119,27 @@ class App
             ? (int)$this->config['ffi_error_buffer_size'] 
             : 4096;
 
-        $server = new Server($this->router, null, null, $dtoBufferSize, $errorBufferSize);
+        $logger = $this->config['logger'] ?? null;
+        if ($logger === null) {
+            $cliLogger = new \Quill\Logger('php://stdout');
+            $logPath = getenv('QUILL_LOG') ?: ($this->config['log_file'] ?? null);
+            
+            if ($logPath === 'true' || $logPath === '1') {
+                $logPath = (string)getcwd() . '/storage/logs/quill.log';
+            }
+            
+            if (is_string($logPath) && $logPath !== '' && $logPath !== 'false' && $logPath !== '0') {
+                $fileLogger = new \Quill\Logger($logPath);
+                $logger = new \Quill\Runtime\MultiLogger([$cliLogger, $fileLogger]);
+                // Pass log file to native engine for fast-path logging
+                Runtime::getDriver()->setLogFile($logPath);
+            } else {
+                $logger = $cliLogger;
+            }
+        }
+
+        /** @var \Psr\Log\LoggerInterface|null $logger */
+        $server = new Server($this->router, null, $logger, $dtoBufferSize, $errorBufferSize);
         $server->start($port);
     }
 

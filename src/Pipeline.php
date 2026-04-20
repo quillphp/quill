@@ -32,6 +32,10 @@ class Pipeline
         $this->container = $container;
     }
 
+    /** @var (\Closure(Request): mixed)|null */
+    private ?\Closure $compiled = null;
+    private ?\Closure $lastDestination = null;
+
     /**
      * Execute the pipeline through all middlewares ending with the destination.
      */
@@ -41,29 +45,33 @@ class Pipeline
             return $destination($request);
         }
 
-        /** @var callable(Request): mixed $pipeline */
-        $pipeline = array_reduce(
-            array_reverse($this->middlewares),
-            function (callable $next, $middleware) {
-                return function (Request $request) use ($next, $middleware) {
-                    if (is_string($middleware) && $this->container?->has($middleware)) {
-                        $middleware = $this->container->get($middleware);
-                    }
+        if ($this->compiled === null || $this->lastDestination !== $destination) {
+            $this->lastDestination = $destination;
+            /** @var callable(Request): mixed $pipeline */
+            $pipeline = array_reduce(
+                array_reverse($this->middlewares),
+                function (callable $next, $middleware) {
+                    return function (Request $request) use ($next, $middleware) {
+                        if (is_string($middleware) && $this->container?->has($middleware)) {
+                            $middleware = $this->container->get($middleware);
+                        }
 
-                    if (is_object($middleware) && method_exists($middleware, 'handle')) {
-                        return $middleware->handle($request, $next);
-                    }
+                        if (is_object($middleware) && method_exists($middleware, 'handle')) {
+                            return $middleware->handle($request, $next);
+                        }
 
-                    if (is_callable($middleware)) {
-                        return $middleware($request, $next);
-                    }
+                        if (is_callable($middleware)) {
+                            return $middleware($request, $next);
+                        }
 
-                    throw new \RuntimeException('Invalid middleware.');
-                };
-            },
-            $destination
-        );
+                        throw new \RuntimeException('Invalid middleware.');
+                    };
+                },
+                $destination
+            );
+            $this->compiled = $pipeline instanceof \Closure ? $pipeline : fn(Request $r) => $pipeline($r);
+        }
 
-        return $pipeline($request);
+        return ($this->compiled)($request);
     }
 }

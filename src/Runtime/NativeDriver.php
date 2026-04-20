@@ -62,18 +62,18 @@ class NativeDriver implements DriverInterface
         }
     }
 
-    public function listen(mixed $routerHandle, mixed $validatorHandle, int $port): int
+    public function listen(mixed $routerHandle, mixed $validatorHandle, int $port, int $workerThreads, int $maxQueue): int
     {
         /** @phpstan-ignore-next-line */
-        return $this->ffi->quill_server_listen($routerHandle, $validatorHandle, $port);
+        return (int)$this->ffi->quill_server_listen($routerHandle, $validatorHandle, $port, $workerThreads, $maxQueue);
     }
 
     public function poll(
-        mixed $idBuf, 
-        mixed $handlerIdBuf, 
-        mixed $paramsBuf, 
-        int $paramsMax, 
-        mixed $dtoBuf, 
+        mixed $idBuf,
+        mixed $handlerIdBuf,
+        mixed $paramsBuf,
+        int $paramsMax,
+        mixed $dtoBuf,
         int $dtoMax
     ): int {
         /** @phpstan-ignore-next-line */
@@ -85,6 +85,17 @@ class NativeDriver implements DriverInterface
         /** @phpstan-ignore-next-line */
         return $this->ffi->quill_server_respond($id, $json, strlen($json));
     }
+
+    public function preloadResponse(int $handlerId, string $responseJson): void
+    {
+        try {
+            /** @phpstan-ignore-next-line */
+            $this->ffi->quill_route_preload($handlerId, $responseJson, strlen($responseJson));
+        } catch (\FFI\Exception) {
+            // Non-fatal: fall back to the PHP bridge for this handler.
+        }
+    }
+
 
     public function dispatch(
         mixed $routerHandle,
@@ -108,5 +119,38 @@ class NativeDriver implements DriverInterface
             $outBuf,
             $outMax
         );
+    }
+
+    public function stats(): string
+    {
+        /** @phpstan-ignore-next-line */
+        $ptr = $this->ffi->quill_server_stats();
+        if ($ptr === null) {
+            return '{}';
+        }
+        $json = \FFI::string($ptr);
+        /** @phpstan-ignore-next-line */
+        $this->ffi->quill_server_stats_free($ptr);
+        return $json;
+    }
+
+    public function drain(int $timeoutMs = 0): void
+    {
+        try {
+            /** @phpstan-ignore-next-line */
+            $this->ffi->quill_server_drain($timeoutMs);
+        } catch (\Throwable) {
+            // FFI drain failed or not supported in this binary version
+        }
+    }
+
+    public function setLogFile(string $path): void
+    {
+        try {
+            /** @phpstan-ignore-next-line */
+            $this->ffi->quill_server_set_log_file($path);
+        } catch (\Throwable) {
+            // FFI call failed or not supported in this binary version
+        }
     }
 }

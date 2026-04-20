@@ -133,8 +133,12 @@ class Validator
         $dto = new $dtoClass();
         $map = self::$cache[$dtoClass];
         
-        /** @var array<string, mixed> $decoded */
-        $decoded = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+        try {
+            /** @var array<string, mixed> $decoded */
+            $decoded = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException $e) {
+            throw new \RuntimeException("Invalid JSON body: " . $e->getMessage(), 400);
+        }
 
         foreach ($decoded as $name => $val) {
             if (isset($map[$name])) {
@@ -172,44 +176,18 @@ class Validator
     }
 
     /**
-     * Reinitialize the validator registry for a freshly forked worker process.
-     *
-     * After pcntl_fork() every child has a COW copy of the parent's
-     * Arc<ValidatorRegistry> pointer.  We free that copy here and create a
-     * brand-new registry owned solely by this process, then re-register all
-     * DTOs that were cached before the fork.
+     * Initialise the validator registry.
      */
     public static function reinitialize(): void
     {
         if (!Runtime::isAvailable()) {
-            self::$cache = [];
-            self::$handle = null;
             return;
         }
-        // Free the inherited (COW) Rust handle in this process.
-        if (self::$handle !== null) {
-            try {
-                /** @phpstan-ignore-next-line */
-                Runtime::get()->quill_validator_free(self::$handle);
-            } catch (\Throwable) {
-            }
-            self::$handle = null;
-        }
 
-        // Remember which DTO classes were already reflected so we can re-register them.
-        /** @var list<class-string> $cachedClasses */
-        $cachedClasses = array_keys(self::$cache);
-        // Clear the cache so register() treats each class as new.
-        self::$cache = [];
-
-        // Create a fresh Rust registry owned by this process.
-        $ffi = Runtime::get();
-        /** @phpstan-ignore-next-line */
-        self::$handle = $ffi->quill_validator_new();
-
-        // Re-register every DTO with the new registry.
-        foreach ($cachedClasses as $dtoClass) {
-            self::register($dtoClass);
+        if (self::$handle === null) {
+            $ffi = Runtime::get();
+            /** @phpstan-ignore-next-line */
+            self::$handle = $ffi->quill_validator_new();
         }
     }
 

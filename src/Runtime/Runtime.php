@@ -92,7 +92,7 @@ final class Runtime
             if ($header === false) {
                 return;
             }
-            $typedefs = "typedef unsigned int uint32_t; typedef unsigned short uint16_t; typedef unsigned long size_t;";
+            $typedefs = "typedef unsigned int uint32_t; typedef int int32_t; typedef unsigned short uint16_t; typedef unsigned char uint8_t; typedef long long int64_t; typedef unsigned long size_t;";
             /** @phpstan-ignore-next-line */
             self::$ffi = \FFI::cdef($typedefs . $header, $soPath);
             self::$available = true;

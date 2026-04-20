@@ -57,7 +57,7 @@ class CLI
             'make:dto'        => $this->makeDTO($argv[2] ?? null),
             'make:middleware' => $this->makeMiddleware($argv[2] ?? null),
             'make:exception'  => $this->makeException($argv[2] ?? null),
-            'benchmark'       => $this->benchmark(),
+            'benchmark'       => $this->benchmark($argv),
             'completion'      => $this->completion($argv[2] ?? 'zsh'),
             'help'            => $this->showHelp(),
             default           => null,
@@ -300,14 +300,37 @@ EOD;
         }
     }
 
-    private function benchmark(): void
+    /** @param list<string> $argv */
+    private function benchmark(array $argv = []): void
     {
+        $duration = 10;
+        $connections = 100;
+        $threads = 4;
+        $json = false;
+
+        foreach ($argv as $arg) {
+            if (str_starts_with($arg, '--duration=')) $duration = (int)substr($arg, 11);
+            if (str_starts_with($arg, '--connections=')) $connections = (int)substr($arg, 14);
+            if (str_starts_with($arg, '--threads=')) $threads = (int)substr($arg, 10);
+            if ($arg === '--json') $json = true;
+        }
+
         $script = __DIR__ . '/../scripts/http-bench.sh';
         if (!file_exists($script)) {
-            echo "\n " . $this->color("[ERROR]:", "red") . " Benchmark script not found at " . $this->color("scripts/http-bench.sh", "bold") . "\n\n";
+            echo "\n " . $this->color("[ERROR]:", "red") . " Benchmark script not found.\n\n";
             exit(1);
         }
 
-        passthru("bash " . escapeshellarg($script));
+        $cmd = sprintf(
+            "DURATION=%d CONNECTIONS=%d THREADS=%d PHP_OPTS=\"%s\" bash %s %s",
+            $duration,
+            $connections,
+            $threads,
+            getenv('PHP_OPTS') ?: '',
+            escapeshellarg($script),
+            $json ? '--json' : ''
+        );
+
+        passthru($cmd);
     }
 }

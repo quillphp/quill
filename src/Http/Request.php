@@ -31,6 +31,12 @@ class Request
         $this->context[$key] = $value;
     }
 
+    public function setRawInput(string $raw): void
+    {
+        $this->rawInputOverride = $raw;
+        $this->jsonBody = null;
+    }
+
     public function get(string $key, mixed $default = null): mixed
     {
         return $this->context[$key] ?? $default;
@@ -177,7 +183,20 @@ class Request
             throw new \InvalidArgumentException('JSON body must be an object or array.');
         }
 
-        /** @var array<string, mixed> $decoded */
+    /** @var array<string, mixed> $decoded */
         return $this->jsonBody = $decoded;
+    }
+
+    /**
+     * Reset the request state for object pooling.
+     */
+    public function reset(): void
+    {
+        $this->pathVars = [];
+        $this->jsonBody = null;
+        $this->rawInputOverride = null;
+        $this->methodOverride = null;
+        $this->pathOverride = null;
+        $this->context = [];
     }
 }

@@ -32,17 +32,17 @@ interface DriverInterface
     /**
      * Start listening on the given port.
      */
-    public function listen(mixed $routerHandle, mixed $validatorHandle, int $port): int;
+    public function listen(mixed $routerHandle, mixed $validatorHandle, int $port, int $workerThreads, int $maxQueue): int;
 
     /**
      * Poll for the next incoming request.
      */
     public function poll(
-        mixed $idBuf, 
-        mixed $handlerIdBuf, 
-        mixed $paramsBuf, 
-        int $paramsMax, 
-        mixed $dtoBuf, 
+        mixed $idBuf,
+        mixed $handlerIdBuf,
+        mixed $paramsBuf,
+        int $paramsMax,
+        mixed $dtoBuf,
         int $dtoMax
     ): int;
 
@@ -50,6 +50,17 @@ interface DriverInterface
      * Send a response back to the client.
      */
     public function respond(int $id, string $json): int;
+
+    /**
+     * Pre-register a static response for a route handler with the Rust engine.
+     * After calling this, Rust will serve all matching requests for this handler
+     * directly — bypassing the PHP polling bridge entirely.
+     *
+     * @param int    $handlerId    The numeric handler ID from the route manifest.
+     * @param string $responseJson Full response JSON: {"status":200,"headers":{...},"body":"..."}.
+     */
+    public function preloadResponse(int $handlerId, string $responseJson): void;
+
 
     /**
      * Dispatch a request directly to the core (Sync mode).
@@ -63,4 +74,19 @@ interface DriverInterface
         mixed $outBuf,
         int $outMax
     ): int;
+
+    /**
+     * Get JSON metrics from the native engine.
+     */
+    public function stats(): string;
+
+    /**
+     * Signal the native engine to drain the request queue for graceful shutdown.
+     */
+    public function drain(int $timeoutMs = 0): void;
+
+    /**
+     * Specify the destination for native-layer logs.
+     */
+    public function setLogFile(string $path): void;
 }
