@@ -187,10 +187,7 @@ final class Server
 
         foreach ($routes as $handlerId => $routeInfo) {
             // Only preload routes that have no path parameters recorded in the manifest.
-            $handler = $routeInfo[2] ?? null;
-            if ($handler === null) {
-                continue;
-            }
+            $handler = $routeInfo[2];
 
             $key = $this->resolveHandlerKey($handler);
             $hasDTO = false;
@@ -393,12 +390,12 @@ final class Server
                     $request->reset();
 
                     // Extract metadata from Rust
-                    $actualMethod = (string)($params['_method'] ?? 'GET');
-                    $actualPath = (string)($params['_path'] ?? '/');
-                    $clientIp = (string)($params['_ip'] ?? '127.0.0.1');
-                    
-                    if (isset($params['_body'])) {
-                        $request->setRawInput((string)$params['_body']);
+                    $actualMethod = is_string($params['_method'] ?? null) ? $params['_method'] : 'GET';
+                    $actualPath = is_string($params['_path'] ?? null) ? $params['_path'] : '/';
+                    $clientIp = is_string($params['_ip'] ?? null) ? $params['_ip'] : '127.0.0.1';
+
+                    if (isset($params['_body']) && is_string($params['_body'])) {
+                        $request->setRawInput($params['_body']);
                     }
                     unset($params['_method'], $params['_path'], $params['_ip'], $params['_body']);
 
